@@ -1,4 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, convertFileSrc } from "@tauri-apps/api/core";
+
+// Outside Tauri (a plain browser with `?mock=1`) src/lib/devmock.js answers.
+const invoke = (cmd, args) =>
+  window.__EWE_SYNC_MOCK__ ? window.__EWE_SYNC_MOCK__.invoke(cmd, args) : tauriInvoke(cmd, args);
+/** a local file path → something an <img> can load (data URIs pass through) */
+export const fileSrc = (p) => (window.__EWE_SYNC_MOCK__ || String(p).startsWith("data:") ? p : convertFileSrc(p));
 
 export const dePrefs = () => invoke("de_prefs");
 

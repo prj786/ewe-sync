@@ -1,6 +1,5 @@
 <script>
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import { convertFileSrc } from "@tauri-apps/api/core";
   import * as api from "../api";
   import { cloud, busy, loginUrl, toast, fmtBytes } from "../stores";
 
@@ -43,7 +42,7 @@
         await refresh();
         try {
           const a = await api.cloudAvatar();
-          if (a?.ok && a.path) avatar = convertFileSrc(a.path) + "?t=" + Date.now();
+          if (a?.ok && a.path) avatar = api.fileSrc(a.path) + (String(a.path).startsWith("data:") ? "" : "?t=" + Date.now());
         } catch {}
         await api.machinesWrite().catch(() => {});
         await api.shellPoke("refresh").catch(() => {});
@@ -89,7 +88,7 @@
   $effect(() => {
     if ($cloud?.signed_in && !avatar) {
       api.cloudAvatar().then((a) => {
-        if (a?.ok && a.path) avatar = convertFileSrc(a.path);
+        if (a?.ok && a.path) avatar = api.fileSrc(a.path);
       }).catch(() => {});
     }
   });

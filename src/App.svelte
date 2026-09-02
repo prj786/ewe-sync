@@ -1,7 +1,9 @@
 <script>
   import { onMount } from "svelte";
   import { get } from "svelte/store";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen as tauriListen } from "@tauri-apps/api/event";
+  // in a plain browser (devmock) there is no event bus — subscribe to nothing
+  const listen = (ev, cb) => (window.__EWE_SYNC_MOCK__ ? Promise.resolve(() => {}) : tauriListen(ev, cb));
   import * as api from "./lib/api";
   import { route, cloud, sync, busy, loginUrl, trayState, toast } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
@@ -72,8 +74,16 @@
     refresh();
   }
 
+  const ROUTES = ["account", "machine", "machines", "folders"];
   onMount(() => {
     const unlisteners = [];
+    // #account / #machine / #machines / #folders open a pane directly (deep
+    // links from the shell and Settings; harmless inside Tauri)
+    const h = location.hash.replace(/^#/, "");
+    if (ROUTES.includes(h)) route.set(h);
+    unlisteners.push(route.subscribe((r) => {
+      if (ROUTES.includes(r) && location.hash !== "#" + r) history.replaceState(null, "", "#" + r);
+    }));
     (async () => {
       applyDePrefs();
       window.addEventListener("focus", applyDePrefs);
