@@ -43,7 +43,7 @@
         <rect x="26" y="44" width="3.2" height="9" rx="1.6" /><rect x="37" y="44" width="3.2" height="9" rx="1.6" />
       </svg>
     </div>
-    <div class="hidden text-lg font-semibold tracking-tight md:block">Flock</div>
+    <div class="hidden text-lg font-semibold tracking-tight md:block">ewe-sync</div>
   </div>
 
   <nav class="flex flex-col gap-0.5 px-1.5 md:px-2.5">
@@ -70,6 +70,6 @@
         {#if $cloud?.signed_in}{$cloud.display_name || $cloud.user}{:else}Not signed in{/if}
       </span>
     </div>
-    {#if version}<div class="mt-1 hidden md:block">Flock {version}</div>{/if}
+    {#if version}<div class="mt-1 hidden md:block">ewe-sync {version}</div>{/if}
   </div>
 </aside>

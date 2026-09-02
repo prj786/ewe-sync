@@ -29,7 +29,7 @@
 </script>
 
 <div class="mx-auto max-w-2xl">
-  <div class="section-title">Your flock</div>
+  <div class="section-title">Your machines</div>
   {#if !$cloud?.signed_in}
     <div class="card px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">Sign in to see the machines that share your account.</div>
   {:else}
@@ -37,7 +37,7 @@
       {#if loading && !$machines.length}
         <div class="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">Reading…</div>
       {:else if !$machines.length}
-        <div class="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">No machine has backed up yet. This one joins the flock at its first backup.</div>
+        <div class="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">No machine has backed up yet. This one joins the list at its first backup.</div>
       {:else}
         {#each $machines as m (m.name)}
           <div class="kv">

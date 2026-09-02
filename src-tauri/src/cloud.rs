@@ -191,7 +191,7 @@ pub async fn conf_get_cmd(key: String) -> Result<Value, String> {
 #[tauri::command]
 pub async fn conf_set_cmd(key: String, value: Value) -> Result<(), String> {
     if !conf_key_allowed(&key) {
-        return Err(format!("Flock may not set {key}"));
+        return Err(format!("ewe-sync may not set {key}"));
     }
     let v = value.to_string();
     let o = run_tool("ewe-conf", &["set", "--no-hooks", &key, &v], None, &[]).await?;
@@ -256,7 +256,7 @@ fn percent(s: &str) -> String {
 
 fn client() -> reqwest::Client {
     reqwest::Client::builder()
-        .user_agent(format!("ewe-flock ({})", hostname()))
+        .user_agent(format!("ewe-sync ({})", hostname()))
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("reqwest client")
@@ -287,7 +287,7 @@ async fn write_machine_record() -> Result<(), String> {
         "last_seen": now,
         "ewe_version": ewe_version(),
         "apps_count": apps,
-        "flock_version": env!("CARGO_PKG_VERSION"),
+        "app_version": env!("CARGO_PKG_VERSION"),
     });
     let url = format!("{}{}.json", d.base, percent(&hostname()));
     let r = c
@@ -372,7 +372,7 @@ pub fn this_machine() -> Value {
     json!({ "name": hostname(), "ewe_version": ewe_version() })
 }
 
-/// `ewe-flock --check`: are the tools here, what does the account say. For
+/// `ewe-sync --check`: are the tools here, what does the account say. For
 /// the smoke test and for support; prints one JSON line.
 pub async fn self_check() -> Value {
     let tools: Vec<Value> = ["ewe-cloud", "ewe-conf", "ewe-auth"]

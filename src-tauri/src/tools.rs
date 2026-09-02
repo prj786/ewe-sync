@@ -1,4 +1,4 @@
-//! The ewe tools Flock drives — ewe-cloud, ewe-conf, ewe-auth — found the
+//! The ewe tools ewe-sync drives — ewe-cloud, ewe-conf, ewe-auth — found the
 //! way ewe-settings finds them and run as argv (python3 <tool> …), never
 //! through a shell. Every tool prints one JSON object; the wrappers here
 //! return it parsed, with the tool's stderr kept for the login-url side
@@ -125,7 +125,7 @@ pub fn hostname() -> String {
 }
 
 /// `qs ipc call cloud <verb>` — keep the shell's account state coherent
-/// after Flock acted. Verbs are an allowlist; nothing from the UI is
+/// after ewe-sync acted. Verbs are an allowlist; nothing from the UI is
 /// interpolated.
 pub async fn shell_poke(verb: &str) {
     if !matches!(verb, "refresh" | "syncSoon" | "applyRestore") {

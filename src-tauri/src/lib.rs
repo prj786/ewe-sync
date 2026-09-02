@@ -4,8 +4,8 @@ mod tray;
 
 use tauri::WindowEvent;
 
-/// `ewe-flock --hidden` (the autostart unit): tray only, no window until the
-/// user asks. `ewe-flock --check`: print the self-check JSON and exit.
+/// `ewe-sync --hidden` (the autostart unit): tray only, no window until the
+/// user asks. `ewe-sync --check`: print the self-check JSON and exit.
 pub fn run() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--check") {
@@ -62,5 +62,5 @@ pub fn run() {
             tray::tray_pause_label,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Flock");
+        .expect("error while running ewe-sync");
 }

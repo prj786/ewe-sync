@@ -31,8 +31,8 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           # The source tarball IS this checkout — no network fetch, no
           # checksum chicken-and-egg.
-          git archive --format=tar.gz --prefix="flock-$pkgver/" \
-            -o "flock-$pkgver.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="ewe-sync-$pkgver/" \
+            -o "ewe-sync-$pkgver.tar.gz" HEAD
           useradd -m builder
           chown -R builder: .
           su builder -c "makepkg -d --noconfirm --skipchecksums"

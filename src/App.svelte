@@ -103,7 +103,7 @@
   // the tray follows the state machine in stores.js
   $effect(() => {
     const c = $cloud;
-    const tip = c?.signed_in ? `Flock — ${c.display_name || c.user}` : "Flock — not signed in";
+    const tip = c?.signed_in ? `ewe-sync — ${c.display_name || c.user}` : "ewe-sync — not signed in";
     api.trayState($trayState, tip).catch(() => {});
   });
   $effect(() => {

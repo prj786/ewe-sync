@@ -1,13 +1,13 @@
 [package]
-name = "ewe-flock"
+name = "ewe-sync"
 version = "0.1.0"
-description = "Flock — the ewe account app: the one file, your machines, your folders"
+description = "ewe-sync — the ewe account app: the one file, your machines, your folders"
 authors = ["scubba"]
 license = "MIT"
 edition = "2021"
 
 [lib]
-name = "flock_lib"
+name = "ewe_sync_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -22,7 +22,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
-# Everything Flock does is the user's own: it drives the ewe tools (ewe-cloud,
+# Everything ewe-sync does is the user's own: it drives the ewe tools (ewe-cloud,
 # ewe-conf, ewe-auth) as argv, talks WebDAV with the account's app password,
 # and pokes the shell over `qs ipc`. No privileged helper, no shell strings.
 

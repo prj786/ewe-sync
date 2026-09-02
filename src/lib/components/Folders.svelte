@@ -20,7 +20,7 @@
     <div class="px-4 py-4 text-sm">
       <div class="font-medium">Folder sync is coming in the next release.</div>
       <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-        Pick which folders sync with your account, two-way or one-way, on change or on a timer, and resolve conflicts here. Powered by the Nextcloud sync engine (<code>nextcloudcmd</code>), driven by Flock.
+        Pick which folders sync with your account, two-way or one-way, on change or on a timer, and resolve conflicts here. Powered by the Nextcloud sync engine (<code>nextcloudcmd</code>), driven by ewe-sync.
       </div>
     </div>
     {#if !$cloud?.signed_in}

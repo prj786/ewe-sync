@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Flock",
+  "productName": "ewe-sync",
   "version": "0.1.0",
-  "identifier": "io.github.prj786.flock",
+  "identifier": "io.github.prj786.ewe-sync",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5175",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Flock",
+        "title": "ewe-sync",
         "width": 960,
         "height": 640,
         "minWidth": 420,

@@ -6,7 +6,7 @@
 
   let { refresh } = $props();
 
-  let server = $state(localStorage.getItem("flock.lastServer") || "");
+  let server = $state(localStorage.getItem("ewe-sync.lastServer") || "");
   let error = $state("");
   let avatar = $state("");
   let resetDone = $state(false);
@@ -34,7 +34,7 @@
       return;
     }
     if (!s.includes("://")) s = "https://" + s;
-    localStorage.setItem("flock.lastServer", s);
+    localStorage.setItem("ewe-sync.lastServer", s);
     busy.set("signin");
     try {
       const r = await api.cloudLogin(s);
@@ -193,7 +193,7 @@
     <div class="section-title">Create an account</div>
     <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
       <div class="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
-        Flock cannot create accounts — only a server's own signup page can. Pick a provider, sign up in the browser, then come back and sign in. Examples, not endorsements.
+        ewe-sync cannot create accounts — only a server's own signup page can. Pick a provider, sign up in the browser, then come back and sign in. Examples, not endorsements.
       </div>
       {#each providers as p}
         <button class="kv w-full text-left hover:bg-zinc-100 dark:hover:bg-zinc-700/40" onclick={() => openUrl(p.url)}>

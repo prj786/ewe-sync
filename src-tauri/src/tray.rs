@@ -7,7 +7,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
-pub const TRAY_ID: &str = "flock";
+pub const TRAY_ID: &str = "ewe-sync";
 
 fn icon_for(state: &str) -> Image<'static> {
     let bytes: &'static [u8] = match state {
@@ -31,13 +31,13 @@ pub fn show_main(app: &AppHandle) {
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let sync_now = MenuItem::with_id(app, "sync-now", "Sync now", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause auto-sync", true, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Open Flock", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open ewe-sync", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&sync_now, &pause, &open, &quit])?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon_for("signed-out"))
-        .tooltip("Flock")
+        .tooltip("ewe-sync")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -72,7 +72,7 @@ pub fn tray_state(app: AppHandle, state: String, tooltip: Option<String>) -> Res
         return Err("no tray".into());
     };
     tray.set_icon(Some(icon_for(&state))).map_err(|e| e.to_string())?;
-    let tip = tooltip.unwrap_or_else(|| "Flock".into());
+    let tip = tooltip.unwrap_or_else(|| "ewe-sync".into());
     tray.set_tooltip(Some(tip)).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -92,7 +92,7 @@ pub fn tray_pause_label(app: AppHandle, paused: bool) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let pause =
         MenuItem::with_id(&app, "pause", label, true, None::<&str>).map_err(|e| e.to_string())?;
-    let open = MenuItem::with_id(&app, "open", "Open Flock", true, None::<&str>)
+    let open = MenuItem::with_id(&app, "open", "Open ewe-sync", true, None::<&str>)
         .map_err(|e| e.to_string())?;
     let quit =
         MenuItem::with_id(&app, "quit", "Quit", true, None::<&str>).map_err(|e| e.to_string())?;

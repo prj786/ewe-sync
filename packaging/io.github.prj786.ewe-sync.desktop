@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=Flock
+Name=ewe-sync
 GenericName=Account
 Comment=Your ewe account — the one file, your machines, your folders
-Exec=ewe-flock
-Icon=io.github.prj786.flock
+Exec=ewe-sync
+Icon=io.github.prj786.ewe-sync
 Terminal=false
 Categories=Utility;
 Keywords=nextcloud;account;sync;backup;restore;ewe;
-StartupWMClass=Flock
+StartupWMClass=ewe-sync

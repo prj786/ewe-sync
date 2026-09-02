@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rasterise the SVG art into the PNGs Tauri and the package need.
-#   packaging/flock.svg        → src-tauri/icons/{32,64,128,256}x*.png, icon.png,
+#   packaging/ewe-sync.svg        → src-tauri/icons/{32,64,128,256}x*.png, icon.png,
 #                                128x128@2x.png (Tauri's expected names)
 #   packaging/tray/<state>.svg → src-tauri/icons/tray-<state>.png (22 px, the
 #                                StatusNotifierItem size the ewe bar shows)
@@ -12,10 +12,10 @@ command -v rsvg-convert >/dev/null || { echo "rsvg-convert (librsvg) is required
 out=src-tauri/icons
 mkdir -p "$out"
 for s in 32 64 128 256; do
-    rsvg-convert -w "$s" -h "$s" packaging/flock.svg -o "$out/${s}x${s}.png"
+    rsvg-convert -w "$s" -h "$s" packaging/ewe-sync.svg -o "$out/${s}x${s}.png"
 done
 cp "$out/256x256.png" "$out/128x128@2x.png"
-rsvg-convert -w 512 -h 512 packaging/flock.svg -o "$out/icon.png"
+rsvg-convert -w 512 -h 512 packaging/ewe-sync.svg -o "$out/icon.png"
 for f in packaging/tray/*.svg; do
     n=$(basename "$f" .svg)
     rsvg-convert -w 22 -h 22 "$f" -o "$out/tray-$n.png"

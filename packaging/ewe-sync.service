@@ -1,12 +1,12 @@
 [Unit]
-Description=Flock — the ewe account app (tray)
+Description=ewe-sync — the ewe account app (tray)
 PartOf=graphical-session.target
 After=graphical-session.target ewe.service
 
 [Service]
 Type=simple
 # --hidden: tray only; the window opens from the tray or the launcher
-ExecStart=/usr/bin/ewe-flock --hidden
+ExecStart=/usr/bin/ewe-sync --hidden
 Restart=on-failure
 RestartSec=3
 

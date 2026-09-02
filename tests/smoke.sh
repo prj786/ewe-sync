@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test — no host state touched: a sandboxed XDG home, the mock
 # Nextcloud on a loopback port, ewe-cloud (from $EWE_REPO or a sibling
-# ewe checkout) signed in against it, then `ewe-flock --check` if a built
+# ewe checkout) signed in against it, then `ewe-sync --check` if a built
 # binary exists. Frontend build always.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -43,7 +43,7 @@ python3 "$EWE/bin/ewe-conf" sync-status | python3 -c 'import json,sys; j=json.lo
 
 # the app's self-check, when a binary exists
 BIN=""
-for b in src-tauri/target/release/ewe-flock src-tauri/target/debug/ewe-flock "$(command -v ewe-flock || true)"; do
+for b in src-tauri/target/release/ewe-sync src-tauri/target/debug/ewe-sync "$(command -v ewe-sync || true)"; do
     [ -n "$b" ] && [ -x "$b" ] && { BIN="$b"; break; }
 done
 if [ -n "$BIN" ]; then
@@ -53,9 +53,9 @@ import json,sys; j=json.load(open(sys.argv[1]))
 assert j["ok"], j["tools"]
 assert j["cloud"]["signed_in"], j["cloud"]
 assert j["sync"].get("provider")=="nextcloud", j["sync"]
-print("tools:", [t["path"] for t in j["tools"]])' "$SB/check.json" && ok "ewe-flock --check"
+print("tools:", [t["path"] for t in j["tools"]])' "$SB/check.json" && ok "ewe-sync --check"
 else
-    echo "skip ewe-flock --check (no built binary — cargo is not on this host)"
+    echo "skip ewe-sync --check (no built binary — cargo is not on this host)"
 fi
 
 npm run build >/dev/null 2>&1 && ok "frontend builds" || fail "frontend build"
