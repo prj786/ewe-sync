@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* Phosphor Fill (MIT, vendored) — the DE's single icon language. */
+@font-face {
+  font-family: "Phosphor-Fill";
+  src: url("./assets/Phosphor-Fill.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+.ph-i {
+  font-family: "Phosphor-Fill";
+  font-style: normal;
+  line-height: 1;
+  display: inline-block;
+}
+
+@theme {
+  --color-accent: var(--accent);
+  --font-sans: Ubuntu, "Noto Sans Georgian", Cantarell, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --accent: #3584e4;
+  color-scheme: light;
+}
+.dark {
+  --accent: #8fbce0;
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+body {
+  @apply bg-zinc-100 text-zinc-900 antialiased dark:bg-zinc-900 dark:text-zinc-100;
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+  user-select: none;
+}
+input,
+textarea {
+  user-select: text;
+}
+
+@utility btn {
+  @apply inline-flex select-none items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn text-white;
+  background: var(--accent);
+  &:hover {
+    filter: brightness(1.08);
+  }
+}
+@utility btn-ghost {
+  @apply btn bg-zinc-200/70 hover:bg-zinc-300/70 dark:bg-zinc-700/60 dark:hover:bg-zinc-600/60;
+}
+@utility btn-danger {
+  @apply btn bg-red-600/90 text-white hover:bg-red-600;
+}
+@utility input {
+  @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm outline-none dark:border-zinc-600 dark:bg-zinc-800;
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+@utility card {
+  @apply rounded-xl border border-zinc-200 bg-white dark:border-zinc-700/60 dark:bg-zinc-800/60;
+}
+@utility section-title {
+  @apply mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-zinc-500 first:mt-0 dark:text-zinc-400;
+}
+@utility kv {
+  @apply flex items-center justify-between gap-3 px-4 py-2.5 text-sm;
+}
+@utility note {
+  @apply rounded-lg border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200;
+}
+
+/* Black Sheep — the DE's absolute-black look, same remap as Komble. */
+.dark.blacksheep {
+  --color-zinc-900: #020202;
+  --color-zinc-800: #101012;
+  --color-zinc-700: #1c1c1f;
+  --color-zinc-600: #2a2a2e;
+}
