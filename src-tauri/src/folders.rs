@@ -732,7 +732,10 @@ pub async fn folders_set(app: AppHandle, pairs: Vec<Pair>) -> Result<Value, Stri
     )
     .await?;
     if o.code != 0 {
-        return Err(format!("ewe-conf set sync.folders failed: {}", o.stderr.trim()));
+        return Err(format!(
+            "ewe-conf set sync.folders failed: {}",
+            o.stderr.trim()
+        ));
     }
     let r = app.state::<Arc<Runner>>().inner().clone();
     r.reload(false).await;
