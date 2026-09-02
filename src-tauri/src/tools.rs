@@ -47,7 +47,9 @@ pub async fn run_tool(
     env: &[(&str, &str)],
 ) -> Result<ToolOutput, String> {
     let Some(path) = ewe_tool(name) else {
-        return Err(format!("{name} is not installed — is ewe deployed on this machine?"));
+        return Err(format!(
+            "{name} is not installed — is ewe deployed on this machine?"
+        ));
     };
     let mut cmd = Command::new("python3");
     cmd.arg(&path)

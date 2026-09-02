@@ -110,7 +110,9 @@ pub async fn cloud_avatar() -> Result<Value, String> {
 /// restart the daemon; PAM recreates it at the next login.
 #[tauri::command]
 pub async fn keyring_reset() -> Result<Value, String> {
-    Ok(run_tool("ewe-auth", &["keyring-reset"], None, &[]).await?.json)
+    Ok(run_tool("ewe-auth", &["keyring-reset"], None, &[])
+        .await?
+        .json)
 }
 
 /// Log out of the session the way the shell does (power.sh, loginctl).
@@ -134,7 +136,9 @@ pub async fn session_logout() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn conf_sync_status() -> Result<Value, String> {
-    Ok(run_tool("ewe-conf", &["sync-status"], None, &[]).await?.json)
+    Ok(run_tool("ewe-conf", &["sync-status"], None, &[])
+        .await?
+        .json)
 }
 
 #[tauri::command]
@@ -217,11 +221,17 @@ struct Dav {
 }
 
 async fn dav() -> Result<Dav, String> {
-    let t = run_tool("ewe-cloud", &["token", "--json"], None, &[]).await?.json;
+    let t = run_tool("ewe-cloud", &["token", "--json"], None, &[])
+        .await?
+        .json;
     if t.get("ok").and_then(|b| b.as_bool()) != Some(true) {
         return Err("not-signed-in".into());
     }
-    let server = t["server"].as_str().unwrap_or("").trim_end_matches('/').to_string();
+    let server = t["server"]
+        .as_str()
+        .unwrap_or("")
+        .trim_end_matches('/')
+        .to_string();
     let user = t["user"].as_str().unwrap_or("").to_string();
     let token = t["token"].as_str().unwrap_or("").to_string();
     if server.is_empty() || user.is_empty() || token.is_empty() {
@@ -267,7 +277,10 @@ async fn write_machine_record() -> Result<(), String> {
     let c = client();
     // MKCOL: 201 created, 405 exists — both fine
     let _ = c
-        .request(reqwest::Method::from_bytes(b"MKCOL").map_err(estr)?, &d.base)
+        .request(
+            reqwest::Method::from_bytes(b"MKCOL").map_err(estr)?,
+            &d.base,
+        )
         .basic_auth(&d.user, Some(&d.token))
         .send()
         .await;
@@ -316,7 +329,10 @@ pub async fn machines_list() -> Result<Value, String> {
     let d = dav().await?;
     let c = client();
     let r = c
-        .request(reqwest::Method::from_bytes(b"PROPFIND").map_err(estr)?, &d.base)
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").map_err(estr)?,
+            &d.base,
+        )
         .basic_auth(&d.user, Some(&d.token))
         .header("Depth", "1")
         .send()
@@ -333,7 +349,9 @@ pub async fn machines_list() -> Result<Value, String> {
     let mut rest = body.as_str();
     while let Some(i) = rest.find("<d:href>") {
         rest = &rest[i + 8..];
-        let Some(j) = rest.find("</d:href>") else { break };
+        let Some(j) = rest.find("</d:href>") else {
+            break;
+        };
         let href = &rest[..j];
         if let Some(name) = href.rsplit('/').next() {
             if let Some(stem) = name.strip_suffix(".json") {
@@ -345,12 +363,7 @@ pub async fn machines_list() -> Result<Value, String> {
     let mut out: Vec<Value> = Vec::new();
     for n in names {
         let url = format!("{}{}.json", d.base, n);
-        if let Ok(r) = c
-            .get(&url)
-            .basic_auth(&d.user, Some(&d.token))
-            .send()
-            .await
-        {
+        if let Ok(r) = c.get(&url).basic_auth(&d.user, Some(&d.token)).send().await {
             if let Ok(text) = r.text().await {
                 if let Ok(v) = serde_json::from_str::<Value>(&text) {
                     out.push(v);
@@ -387,7 +400,9 @@ pub async fn self_check() -> Value {
         .await
         .map(|o| o.json)
         .unwrap_or_else(|e| json!({ "error": e }));
-    let machines = machines_list().await.unwrap_or_else(|e| json!({ "error": e }));
+    let machines = machines_list()
+        .await
+        .unwrap_or_else(|e| json!({ "error": e }));
     json!({
         "ok": tools.iter().all(|t| !t["path"].is_null()),
         "tools": tools,

@@ -71,7 +71,8 @@ pub fn tray_state(app: AppHandle, state: String, tooltip: Option<String>) -> Res
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Err("no tray".into());
     };
-    tray.set_icon(Some(icon_for(&state))).map_err(|e| e.to_string())?;
+    tray.set_icon(Some(icon_for(&state)))
+        .map_err(|e| e.to_string())?;
     let tip = tooltip.unwrap_or_else(|| "ewe-sync".into());
     tray.set_tooltip(Some(tip)).map_err(|e| e.to_string())?;
     Ok(())
@@ -96,7 +97,7 @@ pub fn tray_pause_label(app: AppHandle, paused: bool) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let quit =
         MenuItem::with_id(&app, "quit", "Quit", true, None::<&str>).map_err(|e| e.to_string())?;
-    let menu = Menu::with_items(&app, &[&sync_now, &pause, &open, &quit])
-        .map_err(|e| e.to_string())?;
+    let menu =
+        Menu::with_items(&app, &[&sync_now, &pause, &open, &quit]).map_err(|e| e.to_string())?;
     tray.set_menu(Some(menu)).map_err(|e| e.to_string())
 }

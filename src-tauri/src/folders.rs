@@ -220,7 +220,9 @@ fn scan_conflicts(root: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
         for e in rd.flatten() {
             let name = e.file_name().to_string_lossy().to_string();
             if name.starts_with('.') {
@@ -318,10 +320,7 @@ impl Runner {
     pub async fn reload(self: &Arc<Self>, run_login: bool) {
         let v = conf_get("sync.folders").await.unwrap_or(Value::Null);
         let pairs: Vec<Pair> = serde_json::from_value(v).unwrap_or_default();
-        let pairs: Vec<Pair> = pairs
-            .into_iter()
-            .filter(|p| p.validate().is_ok())
-            .collect();
+        let pairs: Vec<Pair> = pairs.into_iter().filter(|p| p.validate().is_ok()).collect();
         {
             let mut t = self.tasks.lock().await;
             for h in t.drain(..) {
@@ -497,7 +496,9 @@ struct Creds {
 }
 
 async fn creds() -> Result<Creds, String> {
-    let t = run_tool("ewe-cloud", &["token", "--json"], None, &[]).await?.json;
+    let t = run_tool("ewe-cloud", &["token", "--json"], None, &[])
+        .await?
+        .json;
     if t.get("ok").and_then(|b| b.as_bool()) != Some(true) {
         return Err("not signed in".into());
     }
@@ -588,7 +589,9 @@ async fn run_nextcloudcmd(pair: &Pair, local: &Path, c: &Creds) -> Result<(), St
     let excl = exclude_file(pair)?;
     let remote = norm_remote(&pair.remote);
     let mut cmd = Command::new(nccmd::BIN);
-    cmd.arg(nccmd::NON_INTERACTIVE).arg(nccmd::SILENT).arg(nccmd::NETRC);
+    cmd.arg(nccmd::NON_INTERACTIVE)
+        .arg(nccmd::SILENT)
+        .arg(nccmd::NETRC);
     if !remote.is_empty() {
         cmd.arg(nccmd::PATH).arg(format!("/{remote}"));
     }
@@ -602,7 +605,10 @@ async fn run_nextcloudcmd(pair: &Pair, local: &Path, c: &Creds) -> Result<(), St
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let out = cmd.output().await.map_err(|e| format!("{}: {e}", nccmd::BIN))?;
+    let out = cmd
+        .output()
+        .await
+        .map_err(|e| format!("{}: {e}", nccmd::BIN))?;
     if out.status.success() {
         Ok(())
     } else {
@@ -718,7 +724,13 @@ pub async fn folders_set(app: AppHandle, pairs: Vec<Pair>) -> Result<Value, Stri
         seen.push(k);
     }
     let v = serde_json::to_string(&pairs).map_err(|e| e.to_string())?;
-    let o = run_tool("ewe-conf", &["set", "--no-hooks", "sync.folders", &v], None, &[]).await?;
+    let o = run_tool(
+        "ewe-conf",
+        &["set", "--no-hooks", "sync.folders", &v],
+        None,
+        &[],
+    )
+    .await?;
     if o.code != 0 {
         return Err(format!("ewe-conf set sync.folders failed: {}", o.stderr.trim()));
     }
