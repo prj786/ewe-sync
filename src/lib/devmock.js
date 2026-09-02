@@ -30,6 +30,24 @@ export function install(params) {
       remote_machine: "emoh", remote_modified: iso(120), recorded_remote_modified: iso(120),
       local_synced_at: iso(10), local_mtime: Math.floor(Date.now() / 1000) - 600, in_sync: true
     },
+    folders: {
+      pairs: [
+        {
+          key: "|two-way",
+          pair: { remote: "/", local: "~/Nextcloud", mode: "two-way", trigger: "change", interval: 10, exclude: [".git"] },
+          local_effective: "/home/scubba/Nextcloud", running: false,
+          last_run: Math.floor(Date.now() / 1000) - 300, last_ok: true, last_error: "",
+          conflicts: ["Documents/notes (conflicted copy 2026-09-02 153000).md"]
+        },
+        {
+          key: "Photos|upload",
+          pair: { remote: "/Photos", local: "~/Pictures", mode: "upload", trigger: "interval", interval: 30, exclude: [] },
+          local_effective: "/home/scubba/Pictures", running: false,
+          last_run: Math.floor(Date.now() / 1000) - 1800, last_ok: true, last_error: "", conflicts: []
+        }
+      ],
+      syncing: false, conflicts: 1, engines: { nextcloudcmd: true, rclone: true }
+    },
     machines: [
       { name: "emoh", last_seen: iso(120), ewe_version: "0.9.23", apps_count: 24 },
       { name: "ewe-vm", last_seen: iso(60 * 26), ewe_version: "0.9.22", apps_count: 6 }
@@ -52,6 +70,25 @@ export function install(params) {
     machines_list: () => state.machines,
     machines_write: () => null,
     this_machine: () => ({ name: "emoh", ewe_version: "0.9.23", apps_count: 24 }),
+    folders_list: () => state.folders,
+    folders_set: ({ pairs }) => {
+      state.folders.pairs = pairs.map((p) => ({
+        key: `${String(p.remote || "").replace(/^\/+|\/+$/g, "")}|${p.mode}`, pair: p,
+        local_effective: String(p.local).replace(/^~/, "/home/scubba"), running: false,
+        last_run: 0, last_ok: false, last_error: "", conflicts: []
+      }));
+      state.folders.conflicts = 0;
+      return state.folders;
+    },
+    folders_run: () => ({ ok: true }),
+    folders_run_all: () => ({ ok: true, failed: [] }),
+    folders_local_override: () => state.folders,
+    folders_resolve: ({ key }) => {
+      const it = state.folders.pairs.find((p) => p.key === key);
+      if (it) it.conflicts = [];
+      state.folders.conflicts = 0;
+      return state.folders;
+    },
     tray_state: () => null,
     tray_pause_label: () => null
   };

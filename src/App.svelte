@@ -5,7 +5,7 @@
   // in a plain browser (devmock) there is no event bus — subscribe to nothing
   const listen = (ev, cb) => (window.__EWE_SYNC_MOCK__ ? Promise.resolve(() => {}) : tauriListen(ev, cb));
   import * as api from "./lib/api";
-  import { route, cloud, sync, busy, loginUrl, trayState, toast } from "./lib/stores";
+  import { route, cloud, sync, busy, loginUrl, folders, trayState, toast } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Account from "./lib/components/Account.svelte";
   import ThisMachine from "./lib/components/ThisMachine.svelte";
@@ -49,6 +49,8 @@
     if (get(busy)) return;
     busy.set("sync");
     try {
+      // the folders too, when there are any — the tray's Sync now means everything
+      if (get(folders)?.pairs?.length) api.foldersRunAll().catch(() => {});
       const r = await api.push(false);
       if (r.ok) toast("Settings backed up", "success");
       else if (r.error === "remote-newer") toast("Another machine saved newer settings — restore it first, or push anyway from This machine.", "error");
@@ -100,6 +102,13 @@
       unlisteners.push(() => window.removeEventListener("focus", refresh));
 
       unlisteners.push(await listen("login-url", (e) => loginUrl.set(String(e.payload || ""))));
+      // the folder runner reports every change of state (a run, a conflict)
+      unlisteners.push(await listen("folders-status", (e) => folders.set(e.payload)));
+      try {
+        folders.set(await api.foldersList());
+      } catch {
+        /* outside the desktop */
+      }
       unlisteners.push(
         await listen("tray-action", (e) => {
           if (e.payload === "sync-now") syncNow();

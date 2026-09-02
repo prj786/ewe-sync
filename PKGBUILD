@@ -18,10 +18,11 @@ depends=(
   'libayatana-appindicator'   # the tray icon (StatusNotifierItem)
   'python'                    # the ewe tools it drives are Python
   'libsecret'                 # secret-tool — the app password lives in the keyring
+  'nextcloud-client'          # nextcloudcmd — the two-way folder-sync engine (RFC-006 F2)
 )
 optdepends=(
   'ewe: the desktop this is the account app of (ewe-cloud, ewe-conf)'
-  'nextcloud-client: nextcloudcmd, the folder-sync engine (ewe-sync 0.2)'
+  'rclone: one-way (upload / download only) folders'
 )
 makedepends=('rust' 'cargo' 'nodejs' 'npm')
 

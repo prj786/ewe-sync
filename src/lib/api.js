@@ -29,6 +29,14 @@ export const machinesList = () => invoke("machines_list");
 export const machinesWrite = () => invoke("machines_write");
 export const thisMachine = () => invoke("this_machine");
 
+// folders (the runner)
+export const foldersList = () => invoke("folders_list");
+export const foldersSet = (pairs) => invoke("folders_set", { pairs });
+export const foldersRun = (key) => invoke("folders_run", { key });
+export const foldersRunAll = () => invoke("folders_run_all");
+export const foldersLocalOverride = (key, local) => invoke("folders_local_override", { key, local });
+export const foldersResolve = (key, path, keep) => invoke("folders_resolve", { key, path, keep });
+
 // tray
 export const trayState = (state, tooltip) => invoke("tray_state", { state, tooltip: tooltip || null });
 export const trayPauseLabel = (paused) => invoke("tray_pause_label", { paused });

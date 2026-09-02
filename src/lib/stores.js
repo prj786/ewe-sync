@@ -12,16 +12,19 @@ export const busy = writable("");
 export const loginUrl = writable("");
 /** the machine registry */
 export const machines = writable([]);
+/** the folder runner's snapshot: { pairs: [...], syncing, conflicts, engines } */
+export const folders = writable(null);
 export const online = writable(true);
 
 export const signedIn = derived(cloud, ($c) => !!($c && $c.signed_in));
 
 /** what the tray shows — derived from everything above */
-export const trayState = derived([cloud, sync, busy], ([$c, $s, $b]) => {
+export const trayState = derived([cloud, sync, busy, folders], ([$c, $s, $b, $f]) => {
   if (!$c || !$c.signed_in) return "signed-out";
   if ($c.offline) return "offline";
-  if ($b === "sync" || $b === "restore") return "syncing";
+  if ($b === "sync" || $b === "restore" || $f?.syncing) return "syncing";
   if ($s && ($s.error === "remote-newer" || $s.error === "remote-exists")) return "conflict";
+  if ($f?.conflicts) return "conflict";
   return "idle";
 });
 

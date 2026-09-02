@@ -1,8 +1,9 @@
 mod cloud;
+mod folders;
 mod tools;
 mod tray;
 
-use tauri::WindowEvent;
+use tauri::{Manager, WindowEvent};
 
 /// `ewe-sync --hidden` (the autostart unit): tray only, no window until the
 /// user asks. `ewe-sync --check`: print the self-check JSON and exit.
@@ -27,6 +28,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
             tray::build(app.handle())?;
+            // the folder runner: its triggers live for the app's lifetime;
+            // "login" pairs run once, shortly after start
+            let runner = folders::Runner::new(app.handle().clone());
+            app.manage(runner.clone());
+            tauri::async_runtime::spawn(async move { runner.reload(true).await });
             if !hidden {
                 tray::show_main(app.handle());
             }
@@ -58,6 +64,12 @@ pub fn run() {
             cloud::machines_list,
             cloud::machines_write,
             cloud::this_machine,
+            folders::folders_list,
+            folders::folders_set,
+            folders::folders_run,
+            folders::folders_run_all,
+            folders::folders_local_override,
+            folders::folders_resolve,
             tray::tray_state,
             tray::tray_pause_label,
         ])
