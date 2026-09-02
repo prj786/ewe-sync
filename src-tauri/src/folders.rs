@@ -403,12 +403,7 @@ impl Runner {
         self.tasks.lock().await.push(tokio::spawn(async move {
             while rx.recv().await.is_some() {
                 // quiet period: keep resetting while events arrive
-                loop {
-                    match tokio::time::timeout(DEBOUNCE, rx.recv()).await {
-                        Ok(Some(())) => continue,
-                        _ => break,
-                    }
-                }
+                while let Ok(Some(())) = tokio::time::timeout(DEBOUNCE, rx.recv()).await {}
                 me.run_auto(&key).await;
             }
         }));
