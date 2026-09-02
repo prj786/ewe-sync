@@ -1,0 +1,47 @@
+# Build the Arch package for every version tag and attach it to a GitHub
+# release; the [ewe] repository's publish workflow downloads that
+# .pkg.tar.zst (same flow as Komble and ewe-settings).
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build Arch package
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git nodejs npm rust openssl pkgconf github-cli \
+            webkit2gtk-4.1 gtk3 libayatana-appindicator librsvg
+
+      - name: Check out the tag
+        uses: actions/checkout@v4
+
+      - name: Build the package with makepkg
+        run: |
+          pkgver="${GITHUB_REF_NAME#v}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # The source tarball IS this checkout — no network fetch, no
+          # checksum chicken-and-egg.
+          git archive --format=tar.gz --prefix="flock-$pkgver/" \
+            -o "flock-$pkgver.tar.gz" HEAD
+          useradd -m builder
+          chown -R builder: .
+          su builder -c "makepkg -d --noconfirm --skipchecksums"
+
+      - name: Attach the package to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --generate-notes *.pkg.tar.zst \
+          || gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+               --clobber *.pkg.tar.zst

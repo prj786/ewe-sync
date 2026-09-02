@@ -1,0 +1,34 @@
+[package]
+name = "ewe-flock"
+version = "0.1.0"
+description = "Flock — the ewe account app: the one file, your machines, your folders"
+authors = ["scubba"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "flock_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# Everything Flock does is the user's own: it drives the ewe tools (ewe-cloud,
+# ewe-conf, ewe-auth) as argv, talks WebDAV with the account's app password,
+# and pokes the shell over `qs ipc`. No privileged helper, no shell strings.
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+panic = "abort"

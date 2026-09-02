@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+tests/__pycache__/
+
+# makepkg output
+pkg/
+*.pkg.tar.*
+*.tar.gz
