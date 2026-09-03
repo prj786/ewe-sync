@@ -26,7 +26,9 @@ pub async fn de_prefs() -> Result<Value, String> {
         return Ok(Value::Null);
     }
     Ok(json!({
-        "accent": j["accent"].as_str().unwrap_or("#8fbce0"),
+        // "" = the user has never picked one, so the app leaves the theme
+        // default from tokens.css in place instead of overriding it
+        "accent": j["accent"].as_str().unwrap_or(""),
         "themeName": j["themeName"].as_str().unwrap_or("flock"),
         "colorScheme": j["colorScheme"].as_str().unwrap_or("dark"),
     }))

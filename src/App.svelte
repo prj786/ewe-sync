@@ -41,7 +41,9 @@
     try {
       const p = await api.dePrefs();
       if (!p) return;
-      document.documentElement.style.setProperty("--accent", p.accent);
+      // "" = never picked, so the theme default in tokens.css stands
+      if (p.accent) document.documentElement.style.setProperty("--accent", p.accent);
+      else document.documentElement.style.removeProperty("--accent");
       const name = p.themeName || "flock";
       document.documentElement.classList.toggle("blacksheep", name === "blacksheep");
       document.documentElement.classList.toggle("dark", (p.colorScheme || "dark") !== "light");

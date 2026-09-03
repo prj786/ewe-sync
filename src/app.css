@@ -26,11 +26,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --accent: #3584e4;
   color-scheme: light;
 }
+/* --accent is NOT set here: tokens.css chains it to the theme's
+   --accent-default, and the user's own pick is injected inline at
+   runtime, which beats both. */
 .dark {
-  --accent: #8fbce0;
   color-scheme: dark;
 }
 
