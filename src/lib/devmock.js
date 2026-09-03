@@ -54,7 +54,11 @@ export function install(params) {
     ]
   };
   const handlers = {
-    de_prefs: () => ({ accent: "#8fbce0", themeName: "blacksheep", colorScheme: "dark" }),
+    de_prefs: () => ({
+      accent: params.get("accent") || (params.get("theme") === "flock" ? "#ffcc00" : "#b1c5ff"),
+      themeName: params.get("theme") === "flock" ? "flock" : "blacksheep",
+      colorScheme: "dark"
+    }),
     cloud_status: () => state.cloud,
     cloud_login: () => ({ ok: true, ...state.cloud }),
     cloud_logout: () => ({ ok: true, revoked: true }),

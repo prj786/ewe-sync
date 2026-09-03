@@ -101,10 +101,10 @@
     return "Never run";
   }
   function statusClass(it) {
-    if (it.running) return "text-sky-400";
-    if (it.conflicts?.length) return "text-amber-500";
-    if (it.last_error) return "text-red-400";
-    return "text-zinc-500 dark:text-zinc-400";
+    if (it.running) return "text-link";
+    if (it.conflicts?.length) return "text-warning";
+    if (it.last_error) return "text-danger";
+    return "text-dim";
   }
   function triggerText(p) {
     if (p.trigger === "interval") return `every ${p.interval} min`;
@@ -117,16 +117,16 @@
   <div class="section-title">Folders</div>
 
   {#if !$cloud?.signed_in}
-    <div class="card px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">Sign in first — folders sync with your account.</div>
+    <div class="card px-4 py-4 text-sm text-dim">Sign in first — folders sync with your account.</div>
   {:else}
     {#if error}
-      <div class="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>
+      <div class="mb-3 border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-xs text-danger" style="border-radius: var(--radius-inner)">{error}</div>
     {/if}
 
     {#if !items.length && !editing}
       <div class="card px-4 py-4 text-sm">
         <div class="font-medium">Sync ~/Nextcloud with your account</div>
-        <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <div class="mt-1 text-xs text-dim">
           Two-way, whenever something changes — the whole account into one folder on this machine. Opt in below, or add any folder pair you like.
         </div>
         <div class="mt-3 flex gap-2">
@@ -137,12 +137,12 @@
     {/if}
 
     {#each items as it, i (it.key)}
-      <div class="card mb-3 divide-y divide-zinc-200 dark:divide-zinc-700/60">
+      <div class="card mb-3 divide-y divide-hairline">
         <div class="flex items-center gap-3 px-4 py-3">
-          <span class="ph-i text-[18px] text-zinc-500">{String.fromCodePoint(0xe256)}</span>
+          <span class="ph-i text-[18px] text-dim">{String.fromCodePoint(0xe256)}</span>
           <div class="min-w-0 flex-1">
             <div class="truncate font-mono text-xs">{it.local_effective}</div>
-            <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <div class="truncate text-xs text-dim">
               {it.pair.mode === "download" ? "←" : it.pair.mode === "upload" ? "→" : "↔"}
               {it.pair.remote || "/"} · {it.pair.mode} · {triggerText(it.pair)}
               {#if it.last_run}· last run {fmtTime(it.last_run)}{/if}
@@ -151,18 +151,18 @@
           <span class="shrink-0 text-xs {statusClass(it)}">{statusText(it)}</span>
           <button class="btn-ghost !py-1 text-xs" disabled={it.running || !!$busy} onclick={() => runOne(it.key)}>Sync now</button>
           <button class="btn-ghost !py-1 text-xs" disabled={!!$busy} onclick={() => startEdit(i)}>Edit</button>
-          <button class="btn-ghost !py-1 text-xs text-red-400" disabled={!!$busy} onclick={() => remove(i)}>Remove</button>
+          <button class="btn-ghost !py-1 text-xs text-danger" disabled={!!$busy} onclick={() => remove(i)}>Remove</button>
         </div>
         {#if it.last_error}
-          <div class="px-4 py-2 font-mono text-[11px] whitespace-pre-wrap text-red-400">{it.last_error}</div>
+          <div class="px-4 py-2 font-mono text-[11px] whitespace-pre-wrap text-danger">{it.last_error}</div>
         {/if}
         {#if it.conflicts?.length}
           <div class="px-4 py-2">
-            <button class="text-xs text-amber-500" onclick={() => (openConflicts[it.key] = !openConflicts[it.key])}>
+            <button class="text-xs text-warning" onclick={() => (openConflicts[it.key] = !openConflicts[it.key])}>
               {openConflicts[it.key] ? "Hide" : "Show"} {it.conflicts.length} conflict{it.conflicts.length === 1 ? "" : "s"}
             </button>
             {#if openConflicts[it.key]}
-              <div class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div class="mt-2 text-xs text-dim">
                 Both sides changed the same file. Keep yours (it replaces the account's copy on the next run) or keep the account's.
               </div>
               {#each it.conflicts as c (c)}
@@ -187,39 +187,39 @@
         <div class="mb-3 text-sm font-medium">{editing.index < 0 ? "Add folder" : "Edit folder"}</div>
         <div class="grid gap-3">
           <label class="grid gap-1 text-xs">
-            <span class="text-zinc-500 dark:text-zinc-400">Local folder on this machine</span>
+            <span class="text-dim">Local folder on this machine</span>
             <input class="input font-mono" placeholder="~/Documents" bind:value={editing.pair.local} />
           </label>
           <label class="grid gap-1 text-xs">
-            <span class="text-zinc-500 dark:text-zinc-400">Folder in your account</span>
+            <span class="text-dim">Folder in your account</span>
             <input class="input font-mono" placeholder="/ (everything) or /Documents" bind:value={editing.pair.remote} />
           </label>
           <label class="grid gap-1 text-xs">
-            <span class="text-zinc-500 dark:text-zinc-400">Mode</span>
+            <span class="text-dim">Mode</span>
             <select class="input" bind:value={editing.pair.mode}>
               {#each MODES as [v, l]}<option value={v}>{l}</option>{/each}
             </select>
           </label>
           <div class="grid grid-cols-2 gap-3">
             <label class="grid gap-1 text-xs">
-              <span class="text-zinc-500 dark:text-zinc-400">Run</span>
+              <span class="text-dim">Run</span>
               <select class="input" bind:value={editing.pair.trigger}>
                 {#each TRIGGERS as [v, l]}<option value={v}>{l}</option>{/each}
               </select>
             </label>
             <label class="grid gap-1 text-xs">
-              <span class="text-zinc-500 dark:text-zinc-400">Minutes</span>
+              <span class="text-dim">Minutes</span>
               <input class="input" type="number" min="1" max="1440" disabled={editing.pair.trigger !== "interval"} bind:value={editing.pair.interval} />
             </label>
           </div>
           <label class="grid gap-1 text-xs">
-            <span class="text-zinc-500 dark:text-zinc-400">Exclude (one pattern per line)</span>
+            <span class="text-dim">Exclude (one pattern per line)</span>
             <textarea class="input font-mono" rows="3" placeholder=".git&#10;node_modules" bind:value={editing.excludeText}></textarea>
           </label>
           {#if editing.pair.mode === "two-way" && engines.nextcloudcmd === false}
-            <div class="text-xs text-amber-500">nextcloudcmd is not installed — two-way sync needs the nextcloud-client package.</div>
+            <div class="text-xs text-warning">nextcloudcmd is not installed — two-way sync needs the nextcloud-client package.</div>
           {:else if editing.pair.mode !== "two-way" && engines.rclone === false}
-            <div class="text-xs text-amber-500">rclone is not installed — one-way folders need it.</div>
+            <div class="text-xs text-warning">rclone is not installed — one-way folders need it.</div>
           {/if}
           <div class="flex gap-2">
             <button class="btn-primary" disabled={!!$busy} onclick={save}>Save</button>
@@ -229,7 +229,7 @@
       </div>
     {/if}
 
-    <div class="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+    <div class="mt-4 text-xs text-dim">
       Two-way folders run the Nextcloud sync engine (<code>nextcloudcmd</code>); one-way folders copy with rclone and never delete. Folder definitions live in <code>ewe.conf</code> and follow you to every machine; the local path can differ per machine.
     </div>
   {/if}

@@ -61,20 +61,20 @@
 
 <div class="mx-auto max-w-2xl">
   <div class="section-title">This machine</div>
-  <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
-    <div class="kv"><span class="text-zinc-500 dark:text-zinc-400">Name</span><span class="font-medium">{me.name || "—"}</span></div>
-    <div class="kv"><span class="text-zinc-500 dark:text-zinc-400">ewe</span><span>{me.ewe_version || "—"}</span></div>
+  <div class="card divide-y divide-hairline">
+    <div class="kv"><span class="text-dim">Name</span><span class="font-medium">{me.name || "—"}</span></div>
+    <div class="kv"><span class="text-dim">ewe</span><span>{me.ewe_version || "—"}</span></div>
   </div>
 
   <div class="section-title">Settings sync · the one file</div>
   {#if !$cloud?.signed_in}
-    <div class="card px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">Sign in to back up <code>ewe.conf</code> to your account and bring it back on any machine.</div>
+    <div class="card px-4 py-4 text-sm text-dim">Sign in to back up <code>ewe.conf</code> to your account and bring it back on any machine.</div>
   {:else if !$sync}
-    <div class="card px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">Reading…</div>
+    <div class="card px-4 py-4 text-sm text-dim">Reading…</div>
   {:else}
-    <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
+    <div class="card divide-y divide-hairline">
       {#if conflict}
-        <div class="px-4 py-3 text-xs text-amber-500">
+        <div class="px-4 py-3 text-xs text-warning">
           {#if $sync.error === "remote-exists"}
             A backup already exists in your account and this machine never synced. Restore it first — or push anyway to replace it.
           {:else}
@@ -82,10 +82,10 @@
           {/if}
         </div>
       {:else if $sync.error && $sync.error !== "nothing-synced"}
-        <div class="px-4 py-3 text-xs text-red-500">{$sync.error}</div>
+        <div class="px-4 py-3 text-xs text-danger">{$sync.error}</div>
       {/if}
       <div class="kv">
-        <span class="text-zinc-500 dark:text-zinc-400">Backup in your account</span>
+        <span class="text-dim">Backup in your account</span>
         <span class="text-right">
           {#if $sync.remote_machine || $sync.remote_modified}
             saved by <span class="font-medium">{$sync.remote_machine || "?"}</span> · {fmtTime($sync.remote_modified)}
@@ -95,7 +95,7 @@
         </span>
       </div>
       <div class="kv">
-        <span class="text-zinc-500 dark:text-zinc-400">This machine last synced</span>
+        <span class="text-dim">This machine last synced</span>
         <span class="text-right">
           {#if $sync.local_synced_at}{fmtTime($sync.local_synced_at)}{#if $sync.in_sync} · up to date{/if}{:else}never{/if}
         </span>
@@ -103,7 +103,7 @@
       <div class="kv">
         <div>
           <div class="font-medium">Auto-sync</div>
-          <div class="text-xs text-zinc-500 dark:text-zinc-400">Back up whenever the file changes; pull at login when the account is newer.</div>
+          <div class="text-xs text-dim">Back up whenever the file changes; pull at login when the account is newer.</div>
         </div>
         <Toggle on={!!$sync.enabled} toggled={() => setAuto(!$sync.enabled)} />
       </div>
@@ -130,10 +130,10 @@
         </div>
       {/if}
       {#if $busy === "restore"}
-        <div class="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">Restoring — the desktop re-themes and reloads as the file lands…</div>
+        <div class="px-4 py-3 text-xs text-dim">Restoring — the desktop re-themes and reloads as the file lands…</div>
       {/if}
     </div>
-    <div class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+    <div class="mt-2 text-xs text-dim">
       Apps recorded in the file appear in Komble → For you after a restore; nothing installs by itself.
     </div>
   {/if}

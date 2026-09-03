@@ -100,41 +100,41 @@
   <div class="section-title">Your account · Nextcloud</div>
 
   {#if $cloud?.signed_in}
-    <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
+    <div class="card divide-y divide-hairline">
       <div class="flex items-center gap-4 px-4 py-4">
         {#if avatar}
           <img src={avatar} alt="" class="h-14 w-14 rounded-full object-cover" />
         {:else}
-          <div class="flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold text-white" style="background: var(--accent)">
+          <div class="flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold" style="background: var(--accent); color: var(--accent-fg)">
             {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
           </div>
         {/if}
         <div class="min-w-0 flex-1">
           <div class="truncate text-base font-semibold">{$cloud.display_name || $cloud.user}</div>
-          <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{$cloud.email || ""}</div>
-          <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{$cloud.server}</div>
+          <div class="truncate text-xs text-dim">{$cloud.email || ""}</div>
+          <div class="truncate text-xs text-dim">{$cloud.server}</div>
         </div>
         <button class="btn-ghost" disabled={!!$busy} onclick={signOut}>Sign out</button>
       </div>
       {#if $cloud.offline}
-        <div class="px-4 py-2.5 text-xs text-amber-500">Your server did not answer — showing what was known. {$cloud.reason || ""}</div>
+        <div class="px-4 py-2.5 text-xs text-warning">Your server did not answer — showing what was known. {$cloud.reason || ""}</div>
       {/if}
       {#if $cloud.quota && $cloud.quota.total > 0}
         <div class="px-4 py-3">
-          <div class="mb-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
+          <div class="mb-1 flex justify-between text-xs text-dim">
             <span>Storage</span>
             <span>{fmtBytes($cloud.quota.used)} of {fmtBytes($cloud.quota.total)}</span>
           </div>
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+          <div class="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
             <div class="h-full rounded-full" style="width: {quotaPct}%; background: var(--accent)"></div>
           </div>
         </div>
       {/if}
       <div class="kv">
-        <span class="text-zinc-500 dark:text-zinc-400">Signed in as</span>
+        <span class="text-dim">Signed in as</span>
         <span class="font-mono text-xs">{$cloud.user}</span>
       </div>
-      <div class="px-4 py-2.5 text-xs text-zinc-500 dark:text-zinc-400">
+      <div class="px-4 py-2.5 text-xs text-dim">
         This device appears in your Nextcloud under Settings → Security as “ewe”. Revoking it there signs this machine out.
       </div>
     </div>
@@ -176,7 +176,7 @@
         {/if}
       </div>
       {#if $busy === "signin"}
-        <div class="px-4 pb-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <div class="px-4 pb-3 text-xs text-dim">
           Waiting for the browser… finish signing in on your server, then come back here.
           {#if $loginUrl}
             <div class="mt-2 flex gap-4">
@@ -186,21 +186,21 @@
           {/if}
         </div>
       {/if}
-      {#if error}<div class="px-4 pb-3 text-xs text-red-500">{error}</div>{/if}
+      {#if error}<div class="px-4 pb-3 text-xs text-danger">{error}</div>{/if}
     </div>
 
     <div class="section-title">Create an account</div>
-    <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
-      <div class="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
+    <div class="card divide-y divide-hairline">
+      <div class="px-4 py-3 text-xs text-dim">
         ewe-sync cannot create accounts — only a server's own signup page can. Pick a provider, sign up in the browser, then come back and sign in. Examples, not endorsements.
       </div>
       {#each providers as p}
-        <button class="kv w-full text-left hover:bg-zinc-100 dark:hover:bg-zinc-700/40" onclick={() => openUrl(p.url)}>
+        <button class="kv w-full text-left hover:bg-elevated dark:hover:bg-elevated" onclick={() => openUrl(p.url)}>
           <span>
             <span class="font-medium">{p.name}</span>
-            <span class="ml-2 text-xs text-zinc-500 dark:text-zinc-400">{p.note}</span>
+            <span class="ml-2 text-xs text-dim">{p.note}</span>
           </span>
-          <span class="ph-i text-[14px] text-zinc-400">{String.fromCodePoint(0xe13a)}</span>
+          <span class="ph-i text-[14px] text-dim">{String.fromCodePoint(0xe13a)}</span>
         </button>
       {/each}
     </div>

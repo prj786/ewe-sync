@@ -60,48 +60,48 @@
   <div class="section-title">Google · optional</div>
 
   <!-- ── the client file, first: without it there is nothing to connect ── -->
-  <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
-    <div class="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
+  <div class="card divide-y divide-hairline">
+    <div class="px-4 py-3 text-xs text-dim">
       ewe ships no Google client of its own. To use Gmail and Drive, create your own OAuth client of
       type <em>Desktop app</em> (with the Gmail and Drive APIs enabled) and save the file it gives
       you at the path below. A personal client needs no Google verification — its consent screen
       shows a warning you click through once.
     </div>
     <div class="kv">
-      <span class="text-zinc-500 dark:text-zinc-400">Client file</span>
+      <span class="text-dim">Client file</span>
       <span class="font-mono text-xs">{path}</span>
     </div>
     <div class="kv">
-      <span class="text-zinc-500 dark:text-zinc-400">Status</span>
+      <span class="text-dim">Status</span>
       <span class="text-xs">
         {#if clientState === "valid"}
-          <span class="text-green-500">found — a Desktop-app client</span>
+          <span class="text-success">found — a Desktop-app client</span>
         {:else if clientState === "invalid"}
-          <span class="text-amber-500">found, but it is not a Desktop-app client JSON</span>
+          <span class="text-warning">found, but it is not a Desktop-app client JSON</span>
         {:else}
-          <span class="text-zinc-500 dark:text-zinc-400">missing</span>
+          <span class="text-dim">missing</span>
         {/if}
       </span>
     </div>
     {#if clientState === "invalid"}
-      <div class="px-4 py-2.5 text-xs text-amber-500">
+      <div class="px-4 py-2.5 text-xs text-warning">
         The file is there but carries no <span class="font-mono">client_id</span>. Download the
         client again from the console — pick <em>Desktop app</em>, then “Download JSON”, and save it
         verbatim.
       </div>
     {/if}
-    <button class="kv w-full text-left hover:bg-zinc-100 dark:hover:bg-zinc-700/40" onclick={() => openUrl(CONSOLE)}>
+    <button class="kv w-full text-left hover:bg-elevated dark:hover:bg-elevated" onclick={() => openUrl(CONSOLE)}>
       <span><span class="font-medium">Open the Google Cloud console</span>
-        <span class="ml-2 text-xs text-zinc-500 dark:text-zinc-400">create the client there</span></span>
-      <span class="ph-i text-[14px] text-zinc-400">{String.fromCodePoint(0xe13a)}</span>
+        <span class="ml-2 text-xs text-dim">create the client there</span></span>
+      <span class="ph-i text-[14px] text-dim">{String.fromCodePoint(0xe13a)}</span>
     </button>
   </div>
 
   <!-- ── the connection itself ── -->
   <div class="section-title">Connection</div>
-  <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
+  <div class="card divide-y divide-hairline">
     {#if clientState !== "valid"}
-      <div class="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+      <div class="px-4 py-4 text-sm text-dim">
         Nothing to connect until the client file is in place.
       </div>
     {:else if $google?.signed_in}
@@ -111,12 +111,12 @@
         {/if}
         <div class="min-w-0 flex-1">
           <div class="truncate text-base font-semibold">{$google.profile?.name || "Google"}</div>
-          <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{$google.profile?.email || ""}</div>
+          <div class="truncate text-xs text-dim">{$google.profile?.email || ""}</div>
         </div>
         <button class="btn-ghost" disabled={working} onclick={disconnect}>Disconnect</button>
       </div>
       <div class="kv">
-        <span class="text-zinc-500 dark:text-zinc-400">Gmail</span>
+        <span class="text-dim">Gmail</span>
         <span class="text-xs">
           {$google.mail_state === "scope"
             ? "no mail permission — disconnect and connect again"
@@ -126,16 +126,16 @@
         </span>
       </div>
       <div class="kv">
-        <span class="text-zinc-500 dark:text-zinc-400">Drive folder</span>
+        <span class="text-dim">Drive folder</span>
         <span class="text-xs font-mono">~/Google Drive</span>
       </div>
-      <div class="px-4 py-2.5 text-xs text-zinc-500 dark:text-zinc-400">
+      <div class="px-4 py-2.5 text-xs text-dim">
         Settings sync never uses Google — that is your Nextcloud account. An IMAP account, when one
         is set up, takes precedence over Gmail in the Control Center.
       </div>
     {:else}
       <div class="flex items-center justify-between gap-3 px-4 py-4">
-        <div class="text-sm text-zinc-500 dark:text-zinc-400">
+        <div class="text-sm text-dim">
           {working ? "Waiting for the browser…" : "Connect your Google account with your own client."}
         </div>
         {#if working}
@@ -152,7 +152,7 @@
           </div>
         </div>
       {/if}
-      {#if error}<div class="px-4 pb-3 text-xs text-red-500">{error}</div>{/if}
+      {#if error}<div class="px-4 pb-3 text-xs text-danger">{error}</div>{/if}
     {/if}
   </div>
 </div>

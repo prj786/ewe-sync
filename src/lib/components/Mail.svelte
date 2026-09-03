@@ -94,13 +94,13 @@
 <div class="mx-auto max-w-2xl">
   <div class="section-title">Mail · IMAP</div>
 
-  <div class="card divide-y divide-zinc-200 dark:divide-zinc-700/60">
+  <div class="card divide-y divide-hairline">
     <div class="flex items-center gap-3 px-4 py-4">
       <div class="min-w-0 flex-1">
         <div class="truncate text-base font-semibold">
           {configured ? $mail.user : "No mail account"}
         </div>
-        <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">
+        <div class="truncate text-xs text-dim">
           {configured
             ? `${$mail.host}:${$mail.port}`
             : "Add the inbox your Nextcloud provider gives you, or any other IMAP server."}
@@ -116,20 +116,20 @@
     </div>
 
     {#if configured && $mail?.keyring_state && $mail.keyring_state !== "ok"}
-      <div class="px-4 py-2.5 text-xs text-amber-500">
+      <div class="px-4 py-2.5 text-xs text-warning">
         The password is in the keyring, but the keyring is {$mail.keyring_state}. Mail stays quiet until it opens.
       </div>
     {/if}
 
     {#if unseen}
       <div class="px-4 py-3">
-        <div class="text-xs text-zinc-500 dark:text-zinc-400">
+        <div class="text-xs text-dim">
           {unseen.ok === false ? unseen.message || unseen.error : `${unseen.unread || 0} unread`}
         </div>
         {#each unseen.list || [] as m}
           <div class="mt-2 min-w-0">
             <div class="truncate text-sm">{m.subject || "(no subject)"}</div>
-            <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{m.from || ""}</div>
+            <div class="truncate text-xs text-dim">{m.from || ""}</div>
           </div>
         {/each}
       </div>
@@ -151,13 +151,13 @@
           autocomplete="current-password"
           onkeydown={(e) => e.key === "Enter" && save()}
         />
-        <label class="mt-3 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <label class="mt-3 flex items-center gap-2 text-xs text-dim">
           <input type="checkbox" checked={starttls} disabled={working} onchange={toggleStarttls} />
           STARTTLS (port 143 servers) instead of TLS
         </label>
-        {#if error}<div class="mt-2 text-xs text-red-500">{error}</div>{/if}
+        {#if error}<div class="mt-2 text-xs text-danger">{error}</div>{/if}
         <div class="mt-3 flex items-center justify-between gap-3">
-          <div class="text-xs text-zinc-500 dark:text-zinc-400">
+          <div class="text-xs text-dim">
             The password goes into the system keyring. Only the server, user and port are written to
             <span class="font-mono">ewe.conf</span> — never the password.
           </div>
@@ -169,7 +169,7 @@
     {/if}
   </div>
 
-  <div class="px-1 py-3 text-xs text-zinc-500 dark:text-zinc-400">
+  <div class="px-1 py-3 text-xs text-dim">
     The unread badge lives in the Control Center. Whether new mail also raises a notification is a
     per-machine setting, in Settings → User.
   </div>
