@@ -90,7 +90,36 @@ export function install(params) {
       return state.folders;
     },
     tray_state: () => null,
-    tray_pause_label: () => null
+    tray_pause_label: () => null,
+    // the other accounts (RFC-005): `&mail=out` / `&google=out` show the
+    // empty states, which are the ones worth screenshotting
+    mail_status: () =>
+      params.get("mail") === "out"
+        ? { ok: true, configured: false }
+        : { ok: true, configured: true, host: "imap.tab.digital", user: "scubba@tab.digital", port: 993, keyring: true, keyring_state: "ok" },
+    mail_login: ({ host, user, port }) => ({ ok: true, host, user, port }),
+    mail_logout: () => ({ ok: true }),
+    mail_unseen: () => ({
+      ok: true,
+      unread: 2,
+      list: [
+        { id: "1", from: "Nextcloud <no-reply@tab.digital>", subject: "Your app password was used", unread: true },
+        { id: "2", from: "Arch <security@archlinux.org>", subject: "[arch-security] Advisory ASA-202609-1", unread: true }
+      ]
+    }),
+    google_client_info: () =>
+      params.get("google") === "out"
+        ? { path: "/home/scubba/.config/ewe/oauth-client.json", exists: false, valid: false }
+        : { path: "/home/scubba/.config/ewe/oauth-client.json", exists: true, valid: true },
+    google_status: () =>
+      params.get("google") === "out"
+        ? { ok: true, configured: false, signed_in: false }
+        : {
+            ok: true, configured: true, signed_in: true, mail_state: "ok", mail_unread: 3,
+            profile: { name: "Scubba", email: "macharashvili786@gmail.com" }
+          },
+    google_login: () => ({ ok: true }),
+    google_logout: () => ({ ok: true })
   };
   window.__EWE_SYNC_MOCK__ = {
     invoke: (cmd, args) =>

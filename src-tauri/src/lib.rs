@@ -1,3 +1,4 @@
+mod accounts;
 mod cloud;
 mod folders;
 mod tools;
@@ -70,6 +71,14 @@ pub fn run() {
             folders::folders_run_all,
             folders::folders_local_override,
             folders::folders_resolve,
+            accounts::mail_status,
+            accounts::mail_login,
+            accounts::mail_logout,
+            accounts::mail_unseen,
+            accounts::google_client_info,
+            accounts::google_status,
+            accounts::google_login,
+            accounts::google_logout,
             tray::tray_state,
             tray::tray_pause_label,
         ])

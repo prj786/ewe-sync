@@ -10,6 +10,15 @@ export const sync = writable(null);
 export const busy = writable("");
 /** login URL of the sign-in in flight ("" = none) */
 export const loginUrl = writable("");
+/** ewe-mail status (null = not probed yet) */
+export const mail = writable(null);
+/** ewe-auth status (null = not probed yet) */
+export const google = writable(null);
+/** {path, exists, valid} for the user's own Google OAuth client */
+export const gclient = writable(null);
+/** consent URL of the Google connect in flight — kept apart from loginUrl so
+ *  the two panes can never show each other's link ("" = none) */
+export const consentUrl = writable("");
 /** the machine registry */
 export const machines = writable([]);
 /** the folder runner's snapshot: { pairs: [...], syncing, conflicts, engines } */

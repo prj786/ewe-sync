@@ -5,7 +5,7 @@
 # ewe-settings. No privileged helper: everything ewe-sync touches is the user's.
 
 pkgname=ewe-sync
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="ewe-sync — your ewe account: the one file, your machines, your folders"
 arch=('x86_64' 'aarch64')
@@ -18,7 +18,13 @@ depends=(
   'libayatana-appindicator'   # the tray icon (StatusNotifierItem)
   'python'                    # the ewe tools it drives are Python
   'libsecret'                 # secret-tool — the app password lives in the keyring
-  'nextcloud-client'          # nextcloudcmd — the two-way folder-sync engine (RFC-006 F2)
+  # nextcloudcmd — the two-way folder-sync engine (RFC-006 F2). The package's
+  # GUI (/usr/bin/nextcloud) is deliberately NOT part of the desktop: ewe ships
+  # a desktop-entry override that hides it, so ewe-sync is the only sync app a
+  # user ever sees. The dependency stays because nextcloudcmd ships nowhere
+  # else, and writing a two-way sync engine is the Nextcloud client's whole
+  # multi-year job (RFC-006, "Folder sync engine").
+  'nextcloud-client'
 )
 optdepends=(
   'ewe: the desktop this is the account app of (ewe-cloud, ewe-conf)'

@@ -15,6 +15,8 @@
   // Phosphor Fill codepoints — the DE's icon language
   const items = [
     { id: "account", label: "Account", icon: 0xe4c2 }, // user
+    { id: "mail", label: "Mail", icon: 0xe214 }, // envelope
+    { id: "google", label: "Google", icon: 0xe288 }, // globe (the optional extra)
     { id: "machine", label: "This machine", icon: 0xe1fc }, // desktop
     { id: "machines", label: "Machines", icon: 0xe2b0 }, // devices
     { id: "folders", label: "Folders", icon: 0xe256 } // folder

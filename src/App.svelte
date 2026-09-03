@@ -5,9 +5,11 @@
   // in a plain browser (devmock) there is no event bus — subscribe to nothing
   const listen = (ev, cb) => (window.__EWE_SYNC_MOCK__ ? Promise.resolve(() => {}) : tauriListen(ev, cb));
   import * as api from "./lib/api";
-  import { route, cloud, sync, busy, loginUrl, folders, trayState, toast } from "./lib/stores";
+  import { route, cloud, sync, busy, loginUrl, folders, trayState, toast, mail, google, gclient, consentUrl } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Account from "./lib/components/Account.svelte";
+  import Mail from "./lib/components/Mail.svelte";
+  import Google from "./lib/components/Google.svelte";
   import ThisMachine from "./lib/components/ThisMachine.svelte";
   import Machines from "./lib/components/Machines.svelte";
   import Folders from "./lib/components/Folders.svelte";
@@ -43,6 +45,23 @@
     } else {
       sync.set(null);
     }
+    // the other accounts (RFC-005): each answers with one JSON object and
+    // never throws for "not configured", so a missing tool is the only catch
+    try {
+      mail.set(await api.mailStatus());
+    } catch {
+      mail.set(null);
+    }
+    try {
+      gclient.set(await api.googleClientInfo());
+    } catch {
+      gclient.set(null);
+    }
+    try {
+      google.set(await api.googleStatus());
+    } catch {
+      google.set(null);
+    }
   }
 
   async function syncNow() {
@@ -76,10 +95,11 @@
     refresh();
   }
 
-  const ROUTES = ["account", "machine", "machines", "folders"];
+  const ROUTES = ["account", "mail", "google", "machine", "machines", "folders"];
   onMount(() => {
     const unlisteners = [];
-    // #account / #machine / #machines / #folders open a pane directly (deep
+    // #account / #mail / #google / #machine / #machines / #folders open a pane
+    // directly (deep
     // links from the shell and Settings; harmless inside Tauri)
     const h = location.hash.replace(/^#/, "");
     if (ROUTES.includes(h)) route.set(h);
@@ -102,6 +122,7 @@
       unlisteners.push(() => window.removeEventListener("focus", refresh));
 
       unlisteners.push(await listen("login-url", (e) => loginUrl.set(String(e.payload || ""))));
+      unlisteners.push(await listen("google-consent-url", (e) => consentUrl.set(String(e.payload || ""))));
       // the folder runner reports every change of state (a run, a conflict)
       unlisteners.push(await listen("folders-status", (e) => folders.set(e.payload)));
       try {
@@ -136,6 +157,10 @@
   <main class="min-w-0 flex-1 overflow-y-auto px-6 py-5">
     {#if $route === "account"}
       <Account {refresh} />
+    {:else if $route === "mail"}
+      <Mail {refresh} />
+    {:else if $route === "google"}
+      <Google {refresh} />
     {:else if $route === "machine"}
       <ThisMachine {refresh} {syncNow} />
     {:else if $route === "machines"}

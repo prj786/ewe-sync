@@ -14,6 +14,8 @@ between your machines**. Nothing else in ewe has a sync button.
 | pane | what |
 |---|---|
 | Account | sign in to *your* Nextcloud (any provider, or your own server) through the server's own login page; who you are, storage; sign out; links to providers where you can create an account |
+| Mail | any IMAP mailbox — the inbox your Nextcloud provider gives you, one you host, or a work account: add, change, remove, check unread. The password goes to the keyring; only host/user/port reach `ewe.conf`. (Whether new mail *notifies* is a per-machine setting, in Settings → User) |
+| Google | the optional extra: where your own `oauth-client.json` goes and whether it parses, connect / disconnect, Gmail and Drive state. ewe ships no Google client — never settings sync |
 | This machine | the one file: backup saved by which machine and when, when this machine last synced, auto-sync switch, Sync now / Back up / Restore |
 | Machines | your machines — every machine that backed up to the account, with its ewe version and app count |
 | Folders | which folders sync where: two-way through the Nextcloud sync engine, or one-way copies; on change, on a timer, or at login; conflicts resolved in place |

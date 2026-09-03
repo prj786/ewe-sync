@@ -24,6 +24,19 @@ export const confGet = (key) => invoke("conf_get_cmd", { key });
 export const confSet = (key, value) => invoke("conf_set_cmd", { key, value });
 export const shellPoke = (verb) => invoke("shell_poke_cmd", { verb });
 
+// mail (ewe-mail) — any IMAP mailbox; the password goes on stdin, never argv
+export const mailStatus = () => invoke("mail_status");
+export const mailLogin = (host, port, user, password, starttls = false) =>
+  invoke("mail_login", { host, port, user, password, starttls });
+export const mailLogout = () => invoke("mail_logout");
+export const mailUnseen = () => invoke("mail_unseen");
+
+// google (ewe-auth) — the optional extra; ewe ships no client of its own
+export const googleClientInfo = () => invoke("google_client_info");
+export const googleStatus = () => invoke("google_status");
+export const googleLogin = () => invoke("google_login");
+export const googleLogout = () => invoke("google_logout");
+
 // machines
 export const machinesList = () => invoke("machines_list");
 export const machinesWrite = () => invoke("machines_write");
