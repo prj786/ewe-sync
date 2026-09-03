@@ -5,7 +5,7 @@
 # ewe-settings. No privileged helper: everything ewe-sync touches is the user's.
 
 pkgname=ewe-sync
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="ewe-sync — your ewe account: the one file, your machines, your folders"
 arch=('x86_64' 'aarch64')
