@@ -17,13 +17,35 @@
 
   // ewe is dark by decision; the class is on <html> already. Follow the DE's
   // accent and surface live (re-read on focus + a light poll), like Komble.
+  // The look, live. tokens.css is compiled in as the fallback; these values
+  // come from ewe-theme.conf through `ewe-theme show`, so editing the conf
+  // recolours the app at the next focus with no rebuild. Only re-injected when
+  // the theme actually changes — this runs on a 4s poll.
+  let injectedTheme = "";
+  async function applyThemeTokens(name) {
+    if (!name || name === injectedTheme) return;
+    try {
+      const t = await api.themeTokens(name);
+      if (!t || !t.css_vars) return;
+      for (const [k, v] of Object.entries(t.css_vars)) {
+        document.documentElement.style.setProperty(k, v);
+      }
+      injectedTheme = name;
+    } catch {
+      /* ewe-theme absent (dev, or ewe not deployed) — the compiled-in
+         tokens.css already carries this look, so nothing to do */
+    }
+  }
+
   async function applyDePrefs() {
     try {
       const p = await api.dePrefs();
       if (!p) return;
       document.documentElement.style.setProperty("--accent", p.accent);
-      document.documentElement.classList.toggle("blacksheep", (p.themeName || "flock") === "blacksheep");
+      const name = p.themeName || "flock";
+      document.documentElement.classList.toggle("blacksheep", name === "blacksheep");
       document.documentElement.classList.toggle("dark", (p.colorScheme || "dark") !== "light");
+      applyThemeTokens(name);
     } catch {
       /* outside the desktop */
     }

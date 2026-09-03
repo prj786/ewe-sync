@@ -7,6 +7,8 @@ const invoke = (cmd, args) =>
 export const fileSrc = (p) => (window.__EWE_SYNC_MOCK__ || String(p).startsWith("data:") ? p : convertFileSrc(p));
 
 export const dePrefs = () => invoke("de_prefs");
+/** the generated look, from ewe-theme.conf — see applyDePrefs in App.svelte */
+export const themeTokens = (theme) => invoke("theme_tokens", { theme });
 
 // account (ewe-cloud)
 export const cloudStatus = () => invoke("cloud_status");

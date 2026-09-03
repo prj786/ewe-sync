@@ -32,6 +32,27 @@ pub async fn de_prefs() -> Result<Value, String> {
     }))
 }
 
+/// The generated tokens for one look, straight from `ewe-theme show` — which
+/// reads ewe-theme.conf, the single source of truth for every colour and shape
+/// in ewe. The app compiles design/tokens.css in as a fallback, so this is
+/// what lets an edit to the conf land WITHOUT rebuilding the app: the values
+/// are re-injected as CSS custom properties when the window regains focus.
+/// The generator is reused rather than reimplemented here, so the mapping
+/// (hover = "invert" -> --btn-hover-*, and the rest) exists in exactly one
+/// place.
+#[tauri::command]
+pub async fn theme_tokens(theme: String) -> Result<Value, String> {
+    if theme.is_empty()
+        || theme.len() > 64
+        || !theme.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err("bad theme name".into());
+    }
+    Ok(run_tool("ewe-theme", &["show", theme.as_str()], None, &[])
+        .await?
+        .json)
+}
+
 // ── account ─────────────────────────────────────────────────────────────────
 
 #[tauri::command]

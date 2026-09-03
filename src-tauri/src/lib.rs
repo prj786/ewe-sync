@@ -50,6 +50,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             cloud::de_prefs,
+            cloud::theme_tokens,
             cloud::cloud_status,
             cloud::cloud_login,
             cloud::cloud_logout,
