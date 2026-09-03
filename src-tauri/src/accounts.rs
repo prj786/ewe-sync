@@ -71,7 +71,13 @@ pub async fn mail_login(
         return Err("invalid password".into());
     }
     let port_s = port.to_string();
-    let mut args = vec!["login", host.as_str(), user.as_str(), "--port", port_s.as_str()];
+    let mut args = vec![
+        "login",
+        host.as_str(),
+        user.as_str(),
+        "--port",
+        port_s.as_str(),
+    ];
     if starttls.unwrap_or(false) {
         args.push("--starttls");
     }
