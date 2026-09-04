@@ -93,7 +93,7 @@
     <button class="kv w-full text-left hover:bg-elevated dark:hover:bg-elevated" onclick={() => openUrl(CONSOLE)}>
       <span><span class="font-medium">Open the Google Cloud console</span>
         <span class="ml-2 text-xs text-dim">create the client there</span></span>
-      <span class="ph-i text-[14px] text-dim">{String.fromCodePoint(0xe13a)}</span>
+      <span class="icon text-[14px] text-dim">{String.fromCodePoint(0xE06F)}</span>
     </button>
   </div>
 

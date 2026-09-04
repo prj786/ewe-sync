@@ -45,7 +45,7 @@
               <div class="font-medium">
                 {m.name}
                 {#if m.name === me}<span class="ml-1 text-xs text-dim">this machine</span>{/if}
-                {#if $sync?.remote_machine === m.name}<span class="ml-1 px-1.5 py-0.5 text-[11px]" style="background: var(--accent); color: var(--accent-fg); border-radius: var(--radius-pill)">saved the backup</span>{/if}
+                {#if $sync?.remote_machine === m.name}<span class="ml-1 px-1.5 py-0.5 text-[11px]" style="background: var(--brand-bg); color: var(--fg-on-brand); border-radius: var(--radius-pill)">saved the backup</span>{/if}
               </div>
               <div class="text-xs text-dim">
                 ewe {m.ewe_version || "?"} · {m.apps_count ?? 0} apps · seen {fmtTime(m.last_seen)}

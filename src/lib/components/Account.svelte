@@ -105,7 +105,7 @@
         {#if avatar}
           <img src={avatar} alt="" class="h-14 w-14 rounded-full object-cover" />
         {:else}
-          <div class="flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold" style="background: var(--accent); color: var(--accent-fg)">
+          <div class="flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold" style="background: var(--brand-bg); color: var(--fg-on-brand)">
             {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
           </div>
         {/if}
@@ -200,7 +200,7 @@
             <span class="font-medium">{p.name}</span>
             <span class="ml-2 text-xs text-dim">{p.note}</span>
           </span>
-          <span class="ph-i text-[14px] text-dim">{String.fromCodePoint(0xe13a)}</span>
+          <span class="icon text-[14px] text-dim">{String.fromCodePoint(0xE06F)}</span>
         </button>
       {/each}
     </div>

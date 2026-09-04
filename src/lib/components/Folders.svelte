@@ -120,7 +120,7 @@
     <div class="card px-4 py-4 text-sm text-dim">Sign in first — folders sync with your account.</div>
   {:else}
     {#if error}
-      <div class="mb-3 border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-xs text-danger" style="border-radius: var(--radius-inner)">{error}</div>
+      <div class="mb-3 border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-xs text-danger" style="border-radius: var(--radius-card)">{error}</div>
     {/if}
 
     {#if !items.length && !editing}
@@ -139,7 +139,7 @@
     {#each items as it, i (it.key)}
       <div class="card mb-3 divide-y divide-hairline">
         <div class="flex items-center gap-3 px-4 py-3">
-          <span class="ph-i text-[18px] text-dim">{String.fromCodePoint(0xe256)}</span>
+          <span class="icon text-[18px] text-dim">{String.fromCodePoint(0xE247)}</span>
           <div class="min-w-0 flex-1">
             <div class="truncate font-mono text-xs">{it.local_effective}</div>
             <div class="truncate text-xs text-dim">

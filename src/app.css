@@ -3,16 +3,18 @@
 @import "./tokens.css";
 @import "./components.css";
 
-/* Phosphor Fill (MIT, vendored) — the DE's single icon language. */
+/* Lucide 1.40.0 (ISC, vendored) — the DE's single icon language, the same
+   face and codepoints the shell loads. The class is named for the ROLE, not
+   the vendor: the library has changed once and may again. */
 @font-face {
-  font-family: "Phosphor-Fill";
-  src: url("./assets/Phosphor-Fill.ttf") format("truetype");
+  font-family: "lucide";
+  src: url("./assets/Lucide.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
   font-display: block;
 }
-.ph-i {
-  font-family: "Phosphor-Fill";
+.icon {
+  font-family: "lucide";
   font-style: normal;
   line-height: 1;
   display: inline-block;
@@ -42,8 +44,8 @@ body,
 }
 body {
   @apply antialiased;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--bg-3);
+  color: var(--fg-1);
   font-family: var(--font-sans);
   overscroll-behavior: none;
   user-select: none;
