@@ -74,8 +74,23 @@ pub fn tray_state(app: AppHandle, state: String, tooltip: Option<String>) -> Res
     tray.set_icon(Some(icon_for(&state)))
         .map_err(|e| e.to_string())?;
     let tip = tooltip.unwrap_or_else(|| "ewe-sync".into());
-    tray.set_tooltip(Some(tip)).map_err(|e| e.to_string())?;
+    tray.set_tooltip(Some(tip.clone())).map_err(|e| e.to_string())?;
+    poke_shell(&state, &tip);
     Ok(())
+}
+
+/// Tell the ewe bar what we are doing, so "is my stuff safe" is answerable
+/// without opening this app. Same out-of-process contract ewe-conf and
+/// ewe-settings use: poke a named IPC target, never touch the shell's state
+/// directly. Best-effort by design — outside the ewe desktop `qs` is simply
+/// not there, and the tray above is still the whole story.
+fn poke_shell(state: &str, detail: &str) {
+    let _ = std::process::Command::new("qs")
+        .args(["ipc", "call", "sync", "state", state, detail])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
 }
 
 /// Rename the pause item as auto-sync flips, so the menu reads right.
