@@ -23,12 +23,13 @@
   // which reads THIS machine's ewe.conf, so the whole derived set lands:
   // the brand ramp, and the neutrals carrying the accent's tint.
   //
-  // Keyed on the ACCENT, not the theme name. There is one ewe look now — the
-  // name never changes, so keying on it meant injecting once at startup and
-  // never again, and every later accent change stopped at the app boundary.
+  // Keyed on the whole THEME INPUT — accent, corner, density, stroke and
+  // neutral tint. Keying on the accent alone meant a corner or density change
+  // rewrote ewe.conf, moved the shell, then hit this guard and returned early:
+  // "shape and density need a restart" was this one comparison.
   let injectedKey = "";
-  async function applyThemeTokens(accent) {
-    const key = String(accent || "");
+  async function applyThemeTokens(themeKey) {
+    const key = String(themeKey || "");
     if (key === injectedKey) return;
     injectedKey = key;
     try {
@@ -52,8 +53,15 @@
       if (p.accent) document.documentElement.style.setProperty("--accent", p.accent);
       else document.documentElement.style.removeProperty("--accent");
       document.documentElement.classList.toggle("dark", (p.colorScheme || "dark") !== "light");
-      // one look — the ACCENT is what the derived token set follows
-      applyThemeTokens(p.accent || "");
+      // everything ewe-theme derives its token set FROM, as one key. Keying
+      // on the accent alone left corner/density changes at the app boundary.
+      applyThemeTokens([
+        p.accent || "",
+        p.themeCorner || "",
+        p.themeDensity || "",
+        p.themeStroke || "",
+        p.neutralTint === undefined ? "" : String(p.neutralTint)
+      ].join("|"));
     } catch {
       /* outside the desktop */
     }

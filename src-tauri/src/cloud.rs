@@ -31,6 +31,13 @@ pub async fn de_prefs() -> Result<Value, String> {
         "accent": j["accent"].as_str().unwrap_or(""),
         "themeName": j["themeName"].as_str().unwrap_or("flock"),
         "colorScheme": j["colorScheme"].as_str().unwrap_or("dark"),
+        // The SHAPE half travels too: the front end keys its token injection
+        // on this object, and keying on the accent alone meant a corner or
+        // density change moved the shell and stopped at the app boundary.
+        "themeCorner": j["themeCorner"].as_str().unwrap_or(""),
+        "themeDensity": j["themeDensity"].as_str().unwrap_or(""),
+        "themeStroke": j["themeStroke"].as_str().unwrap_or(""),
+        "neutralTint": j["neutralTint"].as_i64().unwrap_or(-1),
     }))
 }
 
