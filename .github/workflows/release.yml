@@ -37,7 +37,15 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           # The source tarball IS this checkout — no network fetch, no
           # checksum chicken-and-egg.
-          git archive --format=tar.gz --prefix="ewe-sync-$pkgver/" \
+          # Write the versions INTO the PKGBUILD. Computing them only in
+          # the shell left makepkg building whatever pkgver the file was
+          # committed with, and reaching for a tag that never existed:
+          # v0.12.0beta.tar.gz, 404. The local tarball below is only
+          # picked up instead of the download when its name matches.
+          sed -i "s/^_tag=.*/_tag=$GITHUB_REF_NAME/" PKGBUILD
+          sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
+          grep -E '^(_tag|pkgver)=' PKGBUILD
+          git archive --format=tar.gz --prefix="ewe-sync-${GITHUB_REF_NAME#v}/" \
             -o "ewe-sync-$pkgver.tar.gz" HEAD
           useradd -m builder
           chown -R builder: .
