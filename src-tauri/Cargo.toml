@@ -1,6 +1,6 @@
 [package]
 name = "ewe-sync"
-version = "0.12.0-beta"
+version = "0.12.2-beta"
 description = "ewe-sync — the ewe account app: the one file, your machines, your folders"
 authors = ["scubba"]
 license = "MIT"

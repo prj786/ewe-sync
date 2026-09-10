@@ -993,7 +993,7 @@ dependencies = [
 
 [[package]]
 name = "ewe-sync"
-version = "0.12.0-beta"
+version = "0.12.2-beta"
 dependencies = [
  "notify",
  "reqwest 0.12.28",
