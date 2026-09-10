@@ -5,6 +5,13 @@ After=graphical-session.target ewe.service
 
 [Service]
 Type=simple
+# Only start with a compositor to talk to: at logout the compositor dies
+# first, ewe-sync exits 1 ("Error reading events from display"), and
+# Restart=on-failure relaunched it into nothing — a GTK abort and coredump per
+# attempt (2026-09-08). Skipping the start leaves the unit inactive (not
+# failed), so nothing restarts it; the next login starts it fresh. `$$` is
+# systemd's literal `$`, expanded by sh at run time.
+ExecCondition=/bin/sh -c 'test -S "$${XDG_RUNTIME_DIR:-/run/user/$$(id -u)}/$${WAYLAND_DISPLAY:-none}"'
 # --hidden: tray only; the window opens from the tray or the launcher
 ExecStart=/usr/bin/ewe-sync --hidden
 Restart=on-failure
