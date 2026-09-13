@@ -21,12 +21,12 @@
     { id: "machines", label: "Machines", icon: 0xE3A2 }, // devices
     { id: "folders", label: "Folders", icon: 0xE247 } // folder
   ];
-  const dotColor = {
-    idle: "bg-[var(--success)]",
-    syncing: "bg-[var(--brand-fg-link)]",
-    conflict: "bg-[var(--warning)]",
-    offline: "bg-[var(--fg-3)]",
-    "signed-out": "bg-[var(--fg-3)]"
+  // the rail-foot dot: one status role per tray state (app.css .rail-dot).
+  // offline / signed-out fall through to the class's own --fg-4.
+  const dotState = {
+    idle: "is-connected",
+    syncing: "is-busy",
+    conflict: "is-busy"
   };
 </script>
 
@@ -34,11 +34,8 @@
 <aside class="rail">
   <div class="rail-brand">
     <!-- the fleece mark -->
-    <div
-      class="flex h-8 w-8 shrink-0 items-center justify-center"
-      style="background: var(--brand-bg); border-radius: var(--radius-card)"
-    >
-      <svg viewBox="0 0 64 64" class="h-6 w-6" fill="var(--fg-on-brand)">
+    <div class="rail-mark">
+      <svg viewBox="0 0 64 64" class="h-7 w-7" fill="currentColor">
         <circle cx="24" cy="30" r="9" /><circle cx="33" cy="26" r="9.5" /><circle cx="42" cy="31" r="8.5" />
         <circle cx="28" cy="38" r="8.5" /><circle cx="38" cy="39" r="8.5" /><circle cx="48" cy="38" r="5.5" />
         <rect x="26" y="44" width="3.2" height="9" rx="1.6" /><rect x="37" y="44" width="3.2" height="9" rx="1.6" />
@@ -62,7 +59,7 @@
 
   <div class="rail-foot">
     <div class="flex items-center gap-2">
-      <span class="h-2 w-2 rounded-full {dotColor[$trayState] || 'bg-[var(--fg-3)]'}"></span>
+      <span class="rail-dot {dotState[$trayState] || ''}"></span>
       <span class="truncate">
         {#if $cloud?.signed_in}{$cloud.display_name || $cloud.user}{:else}Not signed in{/if}
       </span>

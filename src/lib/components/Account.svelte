@@ -96,58 +96,60 @@
   const quotaPct = $derived(Math.max(0, Math.min(100, Math.round(($cloud?.quota?.relative ?? 0) * 1))));
 </script>
 
-<div class="mx-auto max-w-2xl">
-  <div class="section-title">Your account · Nextcloud</div>
+<div class="mx-auto max-w-5xl">
+  <div class="eyebrow">Your account · Nextcloud</div>
 
   {#if $cloud?.signed_in}
-    <div class="card divide-y divide-hairline">
-      <div class="flex items-center gap-4 px-4 py-4">
+    <div class="card p-6">
+      <div class="flex items-start gap-6">
         {#if avatar}
-          <img src={avatar} alt="" class="h-14 w-14 rounded-full object-cover" />
+          <img src={avatar} alt="" class="avatar" />
         {:else}
-          <div class="flex h-14 w-14 items-center justify-center rounded-full text-xl font-semibold" style="background: var(--brand-bg); color: var(--fg-on-brand)">
+          <div class="avatar">
             {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
           </div>
         {/if}
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-base font-semibold">{$cloud.display_name || $cloud.user}</div>
-          <div class="truncate text-xs text-dim">{$cloud.email || ""}</div>
-          <div class="truncate text-xs text-dim">{$cloud.server}</div>
+        <div class="min-w-0 flex-1 pt-1">
+          <div class="truncate text-xl font-semibold text-fg">{$cloud.display_name || $cloud.user}</div>
+          <div class="mt-1 truncate text-sm text-dim">{$cloud.email || ""}</div>
+          <div class="truncate text-sm text-dim">{$cloud.server}</div>
         </div>
-        <button class="btn-ghost" disabled={!!$busy} onclick={signOut}>Sign out</button>
+        <button class="btn-ghost shrink-0" disabled={!!$busy} onclick={signOut}>Sign out</button>
       </div>
       {#if $cloud.offline}
-        <div class="px-4 py-2.5 text-xs text-warning">Your server did not answer — showing what was known. {$cloud.reason || ""}</div>
+        <div class="callout is-warning mt-4">Your server did not answer — showing what was known. {$cloud.reason || ""}</div>
       {/if}
       {#if $cloud.quota && $cloud.quota.total > 0}
-        <div class="px-4 py-3">
-          <div class="mb-1 flex justify-between text-xs text-dim">
+        <div class="mt-6">
+          <div class="mb-2 flex justify-between text-sm text-dim">
             <span>Storage</span>
-            <span>{fmtBytes($cloud.quota.used)} of {fmtBytes($cloud.quota.total)}</span>
+            <span class="tabular-nums">{fmtBytes($cloud.quota.used)} of {fmtBytes($cloud.quota.total)}</span>
           </div>
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
-            <div class="h-full rounded-full" style="width: {quotaPct}%; background: var(--accent)"></div>
+          <div class="meter">
+            <span class="meter-fill {quotaPct >= 95 ? 'is-danger' : quotaPct >= 80 ? 'is-warning' : ''}" style="width: {quotaPct}%"></span>
           </div>
         </div>
       {/if}
-      <div class="kv">
-        <span class="text-dim">Signed in as</span>
-        <span class="font-mono text-xs">{$cloud.user}</span>
+      <div class="mt-4 -mx-1">
+        <div class="kv">
+          <span class="text-muted">Signed in as</span>
+          <span class="text-fg">{$cloud.user}</span>
+        </div>
       </div>
-      <div class="px-4 py-2.5 text-xs text-dim">
+      <div class="mt-3 text-sm text-dim">
         This device appears in your Nextcloud under Settings → Security as “ewe”. Revoking it there signs this machine out.
       </div>
     </div>
   {:else}
-    <div class="card">
-      <div class="px-4 pt-4 text-sm">
+    <div class="card p-6">
+      <div class="text-sm text-muted">
         Sign in to your own Nextcloud — self-hosted or a hosted provider. The browser opens your server's login page; ewe never sees your password.
       </div>
       {#if $cloud?.reason === "revoked"}
-        <div class="mx-4 mt-3 note">This machine's access was revoked on the server. Sign in again to continue.</div>
+        <div class="callout is-warning mt-4">This machine's access was revoked on the server. Sign in again to continue.</div>
       {/if}
       {#if keyringTrouble}
-        <div class="mx-4 mt-3 note">
+        <div class="callout is-warning mt-4">
           {#if keyringState === "locked"}
             Your keyring is locked: an “Unlock keyring” prompt will appear — answer it with your login password. If it keeps rejecting that password, reset the keyring.
           {:else if keyringState === "unavailable"}
@@ -156,12 +158,12 @@
             The keyring refused the last sign-in. Reset it, log out and back in, then sign in again.
           {/if}
           <div class="mt-2 flex gap-3">
-            {#if !resetDone}<button class="text-xs underline" onclick={resetKeyring}>Reset the keyring</button>{/if}
-            {#if resetDone}<button class="text-xs underline" onclick={() => api.sessionLogout().catch((e) => toast(String(e), "error"))}>Log out now</button>{/if}
+            {#if !resetDone}<button class="link text-xs" onclick={resetKeyring}>Reset the keyring</button>{/if}
+            {#if resetDone}<button class="link text-xs" onclick={() => api.sessionLogout().catch((e) => toast(String(e), "error"))}>Log out now</button>{/if}
           </div>
         </div>
       {/if}
-      <div class="flex gap-2 px-4 py-4">
+      <div class="mt-4 flex gap-2">
         <input
           class="input"
           placeholder="https://cloud.example.org"
@@ -176,33 +178,35 @@
         {/if}
       </div>
       {#if $busy === "signin"}
-        <div class="px-4 pb-3 text-xs text-dim">
+        <div class="mt-3 text-sm text-dim">
           Waiting for the browser… finish signing in on your server, then come back here.
           {#if $loginUrl}
             <div class="mt-2 flex gap-4">
-              <button class="underline" onclick={() => openUrl($loginUrl)}>Open the sign-in page</button>
-              <button class="underline" onclick={() => navigator.clipboard.writeText($loginUrl)}>Copy the link</button>
+              <button class="link" onclick={() => openUrl($loginUrl)}>Open the sign-in page</button>
+              <button class="link" onclick={() => navigator.clipboard.writeText($loginUrl)}>Copy the link</button>
             </div>
           {/if}
         </div>
       {/if}
-      {#if error}<div class="px-4 pb-3 text-xs text-danger">{error}</div>{/if}
+      {#if error}<div class="mt-3 text-sm text-danger">{error}</div>{/if}
     </div>
 
-    <div class="section-title">Create an account</div>
-    <div class="card divide-y divide-hairline">
-      <div class="px-4 py-3 text-xs text-dim">
+    <div class="eyebrow mt-6">Create an account</div>
+    <div class="card p-6">
+      <div class="mb-3 text-sm text-dim">
         ewe-sync cannot create accounts — only a server's own signup page can. Pick a provider, sign up in the browser, then come back and sign in. Examples, not endorsements.
       </div>
-      {#each providers as p}
-        <button class="kv w-full text-left hover:bg-elevated dark:hover:bg-elevated" onclick={() => openUrl(p.url)}>
-          <span>
-            <span class="font-medium">{p.name}</span>
-            <span class="ml-2 text-xs text-dim">{p.note}</span>
-          </span>
-          <span class="icon text-[14px] text-dim">{String.fromCodePoint(0xE06F)}</span>
-        </button>
-      {/each}
+      <div class="list-well">
+        {#each providers as p}
+          <button class="list-row text-left" onclick={() => openUrl(p.url)}>
+            <span class="min-w-0 flex-1 truncate">
+              <span class="font-medium">{p.name}</span>
+              <span class="ml-2 text-dim">{p.note}</span>
+            </span>
+            <span class="icon text-dim">{String.fromCodePoint(0xE06F)}</span>
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>
