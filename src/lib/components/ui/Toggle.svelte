@@ -3,17 +3,60 @@
   let { on = false, disabled = false, toggled = () => {} } = $props();
 </script>
 
+<!-- 38×22 track, 18px thumb; the track is a recessed well (--bg-2) until it
+     fills with the brand. No edge — the layer step separates it. -->
 <button
   type="button"
   role="switch"
   aria-checked={on}
   {disabled}
-  class="relative h-5 w-9 shrink-0 transition-colors disabled:opacity-50"
-  style="border-radius: var(--radius-pill); border: var(--stroke-width) solid {on ? 'var(--brand-bg)' : 'var(--stroke-accessible)'}; background: {on ? 'var(--brand-bg)' : 'var(--bg-2)'}"
+  class="toggle {on ? 'is-on' : ''}"
   onclick={() => toggled()}
 >
-  <span
-    class="absolute top-0.5 h-4 w-4 transition-all"
-    style="left: {on ? '18px' : '2px'}; border-radius: var(--radius-pill); background: {on ? 'var(--fg-on-brand)' : 'var(--fg-3)'}"
-  ></span>
+  <span class="toggle-thumb"></span>
 </button>
+
+<style>
+  .toggle {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: var(--radius-pill);
+    background: var(--bg-2);
+    transition: background-color 150ms ease;
+  }
+  .toggle:hover {
+    background: var(--bg-2-hover);
+  }
+  .toggle.is-on,
+  .toggle.is-on:hover {
+    background: var(--brand-bg);
+  }
+  .toggle.is-on:hover {
+    background: var(--brand-bg-hover);
+  }
+  .toggle:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .toggle:focus-visible {
+    outline: var(--focus-width) solid var(--stroke-focus-2);
+    outline-offset: 1px;
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-pill);
+    background: var(--fg-3);
+    transition: background-color 150ms ease;
+  }
+  .toggle.is-on .toggle-thumb {
+    left: 18px;
+    background: var(--fg-on-brand);
+  }
+</style>

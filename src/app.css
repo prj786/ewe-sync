@@ -22,20 +22,23 @@
 
 @theme {
   --color-accent: var(--accent);
-  --font-sans: Ubuntu, "Noto Sans Georgian", Cantarell, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: Inter, "Noto Sans Georgian", Cantarell, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  color-scheme: light;
+  /* dark only, on purpose — there is no light token set (Working rules 04) */
+  color-scheme: dark;
+  /* the account avatar's two gradient stops, named ONCE here so the
+     component carries no literal. The mark is a picture, not a control, so
+     it is the one place a gradient is allowed to stand. */
+  --avatar-from: #8fbfe8;
+  --avatar-to: #3d6c9e;
 }
 /* --accent is NOT set here: tokens.css chains it to the theme's
    --accent-default, and the user's own pick is injected inline at
    runtime, which beats both. */
-.dark {
-  color-scheme: dark;
-}
 
 html,
 body,
@@ -55,5 +58,103 @@ textarea {
   user-select: text;
 }
 
-/* Black Sheep no longer needs a zinc remap here — .dark.blacksheep in
-   tokens.css carries the whole Alexandria palette. */
+/* ── app-local vocabulary ─────────────────────────────────────────────────
+   Small pieces components.css does not carry yet. Every rule below asks for
+   a ROLE; the semantic set (--success/--success-bg …) is not accent-derived,
+   so a status keeps its meaning under any accent. */
+
+/* The pane eyebrow: "Your account · Nextcloud" — a label above the card. */
+.eyebrow {
+  margin-bottom: var(--space-m);
+  font-size: var(--fs-300);
+  line-height: var(--lh-300);
+  font-weight: var(--label-weight);
+  color: var(--fg-3);
+}
+
+/* A status pill: a capsule tinted with the status's own ground. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding-inline: 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: var(--label-weight);
+  line-height: 1;
+  white-space: nowrap;
+  background: var(--info-bg);
+  color: var(--info);
+}
+.pill.is-success { background: var(--success-bg); color: var(--success); }
+.pill.is-warning { background: var(--warning-bg); color: var(--warning); }
+.pill.is-danger { background: var(--danger-bg); color: var(--danger); }
+.pill.is-brand { background: var(--brand-bg); color: var(--fg-on-brand); }
+
+/* A status message inside a card — the note's shape, in each status's own
+   ground. Text only, no edge. */
+.callout {
+  padding: var(--space-s) var(--pad);
+  border-radius: var(--radius-control);
+  font-size: var(--fs-body);
+  background: var(--info-bg);
+  color: var(--info);
+}
+.callout.is-warning { background: var(--warning-bg); color: var(--warning); }
+.callout.is-danger { background: var(--danger-bg); color: var(--danger); }
+
+/* The 84px account avatar. */
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to));
+  color: var(--fg-on-brand);
+  font-size: var(--fs-700);
+  font-weight: var(--label-weight);
+}
+
+/* A text link inside body copy. */
+.link {
+  color: var(--brand-fg-link);
+  transition: color 130ms ease;
+}
+.link:hover {
+  color: var(--brand-fg-link-hover);
+}
+
+/* The rail's own bits the shared classes leave to the app: a 40px brand mark
+   and a 20px wordmark. */
+.rail-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-bg);
+  color: var(--fg-on-brand);
+}
+.rail .rail-brand-name {
+  font-size: var(--fs-500);
+  line-height: var(--lh-500);
+}
+.rail-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fg-4);
+  transition: background-color 150ms ease;
+}
+.rail-dot.is-connected { background: var(--success); }
+.rail-dot.is-busy { background: var(--warning); }
+.rail-dot.is-error { background: var(--danger); }
