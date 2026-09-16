@@ -28,7 +28,6 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
-            tray::build(app.handle())?;
             // the folder runner: its triggers live for the app's lifetime;
             // "login" pairs run once, shortly after start
             let runner = folders::Runner::new(app.handle().clone());
@@ -41,7 +40,8 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                // hide, don't quit: the tray is the app; Quit lives in its menu
+                // hide, don't quit: the app lives for the session (the folder
+                // runner's triggers); the bar's sync glyph / Settings bring it back
                 if window.label() == "main" {
                     let _ = window.hide();
                     api.prevent_close();
