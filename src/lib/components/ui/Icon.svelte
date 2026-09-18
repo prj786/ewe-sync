@@ -1,15 +1,21 @@
 <script>
   /**
-   * One glyph of the vendored Lucide font (the .icon face in app.css).
-   * shadcn-svelte's components normally pull icons from an npm icon package;
-   * they import this instead, so nothing but the font ships and the app keeps
-   * a single icon language. Codepoints live in ./icons.js.
+   * One glyph of the vendored Lucide font inside an .ewe-icon box. The box
+   * takes its size from the component it sits in (an .ewe-btn sets 16px, an
+   * .ewe-empty__icon 24px …) or from `size` (xs, sm, md, lg, xl, 2xl); the
+   * glyph fills the box (app.css, .ewe-glyph). `code` is a codepoint or a
+   * name from ./icons.js.
    */
-  let { code, size = 14, class: className = "" } = $props();
+  import { ICONS } from "./icons.js";
+  let { code, name = "", size = "", tone = "", class: className = "", label = "" } = $props();
+  const cp = $derived(typeof code === "number" ? code : ICONS[name || code] ?? 0x3f);
+  const sizeClass = $derived(size && size !== "md" ? `ewe-icon--${size}` : "");
+  const toneClass = $derived(tone ? `ewe-icon-tone--${tone}` : "");
 </script>
 
 <span
-  class="icon shrink-0 {className}"
-  style="font-size: {size}px; width: {size}px; height: {size}px"
-  aria-hidden="true">{String.fromCodePoint(code)}</span
+  class="ewe-icon ewe-glyph {sizeClass} {toneClass} {className}"
+  role={label ? "img" : undefined}
+  aria-label={label || undefined}
+  aria-hidden={label ? undefined : "true"}><i>{String.fromCodePoint(cp)}</i></span
 >

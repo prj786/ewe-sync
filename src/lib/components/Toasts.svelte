@@ -1,41 +1,50 @@
 <script>
-  import { toasts, dismissToast } from "../stores";
-  // each toast sits on its status's own ground — no edge, the fill is the signal
-  const styles = {
-    success: "is-success",
-    error: "is-danger",
-    info: ""
-  };
+  /**
+   * The Toast (design/system/components/Toast): one at a time, centered at
+   * the bottom of the window. The 2px accent timer shrinks while the toast
+   * waits and pauses while it is hovered or focused; when it runs out the
+   * toast closes. role=status: announced politely, never takes focus.
+   */
+  import { currentToast, dismissToast } from "../stores";
+  import Icon from "./ui/Icon.svelte";
+
+  const glyph = { success: "success", warning: "warning", danger: "alert", info: "info" };
+  // **name** in a message is the thing it names, set in weight 600
+  const parts = (m) => String(m).split(/\*\*(.+?)\*\*/g).map((t, i) => ({ t, b: i % 2 === 1 }));
+
+  async function act(t) {
+    dismissToast(t.id);
+    try {
+      await t.action.run();
+    } catch (e) {
+      console.error(e);
+    }
+  }
 </script>
 
-<div class="fixed bottom-4 right-4 z-50 flex w-96 max-w-[90vw] flex-col gap-2">
-  {#each $toasts as t (t.id)}
-    <button
-      class="toast {styles[t.type] || ''} px-4 py-2.5 text-left text-sm"
-      onclick={() => dismissToast(t.id)}
-    >
-      {t.message}
-    </button>
-  {/each}
+<div class="toasts" role="status" aria-live="polite">
+  {#if $currentToast}
+    {#key $currentToast.id}
+      {@const t = $currentToast}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="ewe-toast ewe-toast--{t.tone}" onkeydown={(e) => e.key === "Escape" && dismissToast(t.id)}>
+        <Icon name={glyph[t.tone] || "info"} />
+        <span class="ewe-toast__text">
+          {#each parts(t.message) as p}{#if p.b}<b>{p.t}</b>{:else}{p.t}{/if}{/each}
+        </span>
+        {#if t.action}
+          <button class="ewe-toast__action" onclick={() => act(t)}>{t.action.label}</button>
+        {/if}
+        <span class="ewe-toast__sep"></span>
+        <button class="ewe-iconbtn ewe-iconbtn--ghost ewe-iconbtn--sm" aria-label="Close" title="Close" onclick={() => dismissToast(t.id)}>
+          <Icon name="x" />
+        </button>
+        <span
+          class="ewe-toast__timer"
+          style="animation-duration: {t.timeout}ms"
+          onanimationend={() => dismissToast(t.id)}
+        ></span>
+      </div>
+    {/key}
+  {/if}
 </div>
-
-<style>
-  .toast {
-    border-radius: var(--radius-card);
-    background: var(--card);
-    color: var(--fg-1);
-    box-shadow: var(--elevation);
-    transition: background-color 130ms ease;
-  }
-  .toast:hover {
-    background: var(--card-hover);
-  }
-  .toast.is-success {
-    background: var(--success-bg);
-    color: var(--success);
-  }
-  .toast.is-danger {
-    background: var(--danger-bg);
-    color: var(--danger);
-  }
-</style>

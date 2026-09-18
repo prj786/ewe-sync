@@ -1,7 +1,15 @@
 <script>
+  // Side navigation (design/system/components/SideNav): the sheep mark and
+  // the app name, the sections, and in the footer the account's state and
+  // the version in Geist Mono. Up and Down move between sections; Ctrl+1 …
+  // Ctrl+6 jump (App.svelte).
   import { onMount } from "svelte";
   import { getVersion } from "@tauri-apps/api/app";
+  import sheep from "../../assets/sheep.svg?raw";
+  import Icon from "./ui/Icon.svelte";
   import { route, cloud, trayState } from "../stores";
+
+  let { items = [] } = $props();
 
   let version = $state("");
   onMount(async () => {
@@ -12,58 +20,57 @@
     }
   });
 
-  // Lucide codepoints — the DE's icon language
-  const items = [
-    { id: "account", label: "Account", icon: 0xE19F }, // user
-    { id: "mail", label: "Mail", icon: 0xE10F }, // envelope
-    { id: "google", label: "Google", icon: 0xE0E8 }, // globe (the optional extra)
-    { id: "machine", label: "This machine", icon: 0xE0E9 }, // desktop
-    { id: "machines", label: "Machines", icon: 0xE3A2 }, // devices
-    { id: "folders", label: "Folders", icon: 0xE247 } // folder
-  ];
-  // the rail-foot dot: one status role per tray state (app.css .rail-dot).
-  // offline / signed-out fall through to the class's own --fg-4.
-  const dotState = {
-    idle: "is-connected",
-    syncing: "is-busy",
-    conflict: "is-busy"
+  // the footer dot: one status role per tray state; offline and signed out
+  // fall back to the neutral dot (a Badge dot, Badge card)
+  const dotTone = { idle: "ewe-badge--success", syncing: "ewe-badge--warning", conflict: "ewe-badge--warning" };
+  const stateWord = {
+    idle: "Up to date",
+    syncing: "Syncing…",
+    conflict: "Needs a decision",
+    offline: "Offline",
+    "signed-out": "Not signed in"
   };
+
+  let navItems = $state([]);
+  function navKey(e, i) {
+    const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const n = (i + d + items.length) % items.length;
+    navItems[n]?.focus();
+    route.set(items[n].id);
+  }
 </script>
 
-<!-- .rail / .rail-* — the chrome shared with Komble and ewe-settings (app.css) -->
-<aside class="rail">
-  <div class="rail-brand">
-    <!-- the fleece mark -->
-    <div class="rail-mark">
-      <svg viewBox="0 0 64 64" class="h-7 w-7" fill="currentColor">
-        <circle cx="24" cy="30" r="9" /><circle cx="33" cy="26" r="9.5" /><circle cx="42" cy="31" r="8.5" />
-        <circle cx="28" cy="38" r="8.5" /><circle cx="38" cy="39" r="8.5" /><circle cx="48" cy="38" r="5.5" />
-        <rect x="26" y="44" width="3.2" height="9" rx="1.6" /><rect x="37" y="44" width="3.2" height="9" rx="1.6" />
-      </svg>
-    </div>
-    <div class="rail-brand-name">ewe-sync</div>
+<nav class="ewe-sidenav" aria-label="ewe-sync sections">
+  <div class="ewe-sidenav__brand">
+    <span class="ewe-sidenav__logo" aria-hidden="true">{@html sheep}</span>
+    <span class="ewe-sidenav__name">ewe-sync</span>
   </div>
-
-  <nav class="rail-nav">
-    {#each items as it}
+  <div class="ewe-sidenav__group">
+    {#each items as it, i (it.id)}
       <button
+        bind:this={navItems[i]}
+        class="ewe-navitem"
+        class:is-selected={$route === it.id}
+        aria-current={$route === it.id ? "page" : undefined}
         title={it.label}
-        class="rail-item {$route === it.id ? 'is-active' : ''}"
         onclick={() => route.set(it.id)}
+        onkeydown={(e) => navKey(e, i)}
       >
-        <span class="icon">{String.fromCodePoint(it.icon)}</span>
-        <span class="rail-label">{it.label}</span>
+        <Icon name={it.icon} />
+        <span class="ewe-navitem__label">{it.label}</span>
       </button>
     {/each}
-  </nav>
+  </div>
 
-  <div class="rail-foot">
-    <div class="flex items-center gap-2">
-      <span class="rail-dot {dotState[$trayState] || ''}"></span>
-      <span class="truncate">
+  <div class="ewe-sidenav__foot">
+    <div class="sync-state" title={stateWord[$trayState] || ""}>
+      <span class="ewe-badge ewe-badge--dot ewe-badge--solid {dotTone[$trayState] || 'ewe-badge--neutral'}"></span>
+      <span class="sync-state__text ewe-navitem__label">
         {#if $cloud?.signed_in}{$cloud.display_name || $cloud.user}{:else}Not signed in{/if}
       </span>
     </div>
-    {#if version}<div class="mt-1">ewe-sync {version}</div>{/if}
+    {#if version}<div class="ewe-sidenav__version">ewe-sync {version}</div>{/if}
   </div>
-</aside>
+</nav>
