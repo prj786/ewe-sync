@@ -1,55 +1,102 @@
 @import "tailwindcss";
-/* the ONE colour + shape system, authored in ewe/design/tokens.css */
-@import "./tokens.css";
-@import "./components.css";
+/* The Ewe design system, version 3: the token layer and the component
+   classes, both authored in ewe/design/ and copied verbatim (check-tokens.sh
+   holds the copies to the source). Layered so that Tailwind's own theme
+   defaults sit below the tokens and a utility on an element can still adjust
+   an ewe-* class (margins, widths), never the other way round. */
+@import "./tokens.css" layer(base);
+@import "./components.css" layer(components);
 
-/* Lucide 1.40.0 (ISC, vendored) — the DE's single icon language, the same
-   face and codepoints the shell loads. The class is named for the ROLE, not
-   the vendor: the library has changed once and may again. */
-@font-face {
-  font-family: "lucide";
-  src: url("./assets/Lucide.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
-.icon {
-  font-family: "lucide";
-  font-style: normal;
-  line-height: 1;
-  display: inline-block;
-}
-
-@theme {
+/* ── Tailwind's theme IS the token set ──────────────────────────────────────
+   Every scale Tailwind generates utilities from is reset and re-pointed at a
+   token, so `p-2`, `text-sm`, `rounded-lg` or `text-dim` can only land on an
+   Ewe value. The default palette, type ramp, radii and shadows are gone.
+   Spacing steps are multiples of space-xs (4px): p-1 = space-xs, p-2 =
+   space-s, p-4 = space-md, p-8 = space-lg. Type: text-xs = caption (11),
+   text-sm = body (13), text-base = 15, text-lg = 18, text-xl = 22. */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-dim: var(--text-muted);
+  --color-disabled: var(--text-disabled);
   --color-accent: var(--accent);
-  --font-sans: Inter, "Noto Sans Georgian", Cantarell, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-accent-text: var(--accent-text);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-success-subtle: var(--success-subtle);
+  --color-info-subtle: var(--info-subtle);
+  --color-base: var(--surface-base);
+  --color-raised: var(--surface-raised);
+  --color-overlay: var(--surface-overlay);
+  --color-sunken: var(--surface-sunken);
+  --color-hover: var(--surface-hover);
+  --color-pressed: var(--surface-pressed);
+  --color-elevated: var(--surface-raised);
+  --color-hairline: var(--border-subtle);
+  --color-strong: var(--border-strong);
+  --color-focus: var(--focus-ring);
+
+  --spacing: var(--space-xs);
+
+  --text-*: initial;
+  --text-xs: var(--font-size-xs);
+  --text-xs--line-height: var(--line-height-xs);
+  --text-sm: var(--font-size-md);
+  --text-sm--line-height: var(--line-height-md);
+  --text-base: var(--font-size-lg);
+  --text-base--line-height: var(--line-height-lg);
+  --text-lg: var(--font-size-xl);
+  --text-lg--line-height: var(--line-height-xl);
+  --text-xl: var(--font-size-2xl);
+  --text-xl--line-height: var(--line-height-2xl);
+  --text-2xl: var(--font-size-3xl);
+  --text-2xl--line-height: var(--line-height-3xl);
+  --text-3xl: var(--font-size-4xl);
+  --text-3xl--line-height: var(--line-height-4xl);
+
+  --radius-*: initial;
+  --radius-xs: var(--slight);
+  --radius-sm: var(--slight);
+  --radius-md: var(--secondary);
+  --radius-lg: var(--primary);
+  --radius-xl: var(--rounded);
+  --radius-2xl: var(--rounded);
+
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+
+  --default-transition-duration: var(--dur-fast);
+  --default-transition-timing-function: var(--ease-out);
 }
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-:root {
-  /* dark only, on purpose — there is no light token set (Working rules 04) */
-  color-scheme: dark;
-  /* the account avatar's two gradient stops, named ONCE here so the
-     component carries no literal. The mark is a picture, not a control, so
-     it is the one place a gradient is allowed to stand. */
-  --avatar-from: #8fbfe8;
-  --avatar-to: #3d6c9e;
-}
-/* --accent is NOT set here: tokens.css chains it to the theme's
-   --accent-default, and the user's own pick is injected inline at
-   runtime, which beats both. */
-
+/* ── ground ─────────────────────────────────────────────────────────────── */
 html,
 body,
 #app {
   height: 100%;
 }
+:root {
+  /* flipped to light by the theme runtime (lib/theme.js) with the scheme */
+  color-scheme: dark;
+}
 body {
-  @apply antialiased;
-  background: var(--bg-3);
-  color: var(--fg-1);
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-md);
+  -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
   user-select: none;
 }
@@ -57,104 +104,506 @@ input,
 textarea {
   user-select: text;
 }
-
-/* ── app-local vocabulary ─────────────────────────────────────────────────
-   Small pieces components.css does not carry yet. Every rule below asks for
-   a ROLE; the semantic set (--success/--success-bg …) is not accent-derived,
-   so a status keeps its meaning under any accent. */
-
-/* The pane eyebrow: "Your account · Nextcloud" — a label above the card. */
-.eyebrow {
-  margin-bottom: var(--space-m);
-  font-size: var(--fs-300);
-  line-height: var(--lh-300);
-  font-weight: var(--label-weight);
-  color: var(--fg-3);
+code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-s);
+}
+/* keyboard focus on anything the ewe-* classes do not cover: the same 1px
+   focus-ring, 1px outside the edge */
+:where(button, [role="button"], [role="radio"], [role="switch"], a, select, [tabindex]):focus-visible {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: var(--border-width-1);
 }
 
-/* A status pill: a capsule tinted with the status's own ground. */
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding-inline: 8px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: var(--label-weight);
-  line-height: 1;
-  white-space: nowrap;
-  background: var(--info-bg);
-  color: var(--info);
-}
-.pill.is-success { background: var(--success-bg); color: var(--success); }
-.pill.is-warning { background: var(--warning-bg); color: var(--warning); }
-.pill.is-danger { background: var(--danger-bg); color: var(--danger); }
-.pill.is-brand { background: var(--brand-bg); color: var(--fg-on-brand); }
-
-/* A status message inside a card — the note's shape, in each status's own
-   ground. Text only, no edge. */
-.callout {
-  padding: var(--space-s) var(--pad);
-  border-radius: var(--radius-control);
-  font-size: var(--fs-body);
-  background: var(--info-bg);
-  color: var(--info);
-}
-.callout.is-warning { background: var(--warning-bg); color: var(--warning); }
-.callout.is-danger { background: var(--danger-bg); color: var(--danger); }
-
-/* The 84px account avatar. */
-.avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 84px;
-  height: 84px;
-  flex-shrink: 0;
-  border-radius: var(--radius-pill);
-  object-fit: cover;
-  background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to));
-  color: var(--fg-on-brand);
-  font-size: var(--fs-700);
-  font-weight: var(--label-weight);
+@font-face {
+  font-family: "lucide";
+  src: url("./assets/Lucide.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
 }
 
-/* A text link inside body copy. */
-.link {
-  color: var(--brand-fg-link);
-  transition: color 130ms ease;
+@keyframes ewe-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-xs)));
+  }
 }
-.link:hover {
-  color: var(--brand-fg-link-hover);
+@keyframes ewe-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-xs));
+  }
+}
+@keyframes ewe-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(var(--space-xs));
+  }
+}
+@keyframes ewe-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
-/* The rail's own bits the shared classes leave to the app: a 40px brand mark
-   and a 20px wordmark. */
-.rail-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: var(--radius-control);
-  background: var(--brand-bg);
-  color: var(--fg-on-brand);
+/* App rules sit in the components layer beside the ewe-* classes, so a
+   state class (.is-selected, :hover) still wins over a plain adjustment by
+   specificity, and a Tailwind utility on an element still wins over both. */
+@layer components {
+  /* ── icons: the Lucide font, sized by the ewe-icon box ──────────────────────
+     Lucide 1.40.0 (ISC, vendored in assets/). The shell draws the same glyphs
+     from the same font. Icon.svelte renders an .ewe-icon box (whose width and
+     height every component rule already sets) around the glyph; the box is a
+     size container, so the glyph always fills exactly the box it is given. */
+
+  .ewe-glyph {
+    container-type: size;
+    display: inline-grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .ewe-glyph > i {
+    font-family: "lucide";
+    font-style: normal;
+    font-weight: normal;
+    font-size: 100cqh;
+    line-height: 1;
+  }
+  .ewe-icon--xs {
+    width: var(--icon-xs);
+    height: var(--icon-xs);
+  }
+
+  /* ── app shell (App shell card): window, rail, pane ────────────────────── */
+  .ewe-appwin {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .ewe-appwin .ewe-sidenav {
+    flex: none;
+    overflow-y: auto;
+  }
+  .ewe-appwin__pane {
+    position: relative;
+    overflow: hidden;
+  }
+  .ewe-appwin__scroll {
+    overflow-y: auto;
+    padding: 0;
+  }
+  .ewe-sidenav__logo {
+    color: var(--text-primary);
+  }
+  .ewe-sidenav__group {
+    flex: 1 1 auto;
+  }
+  .ewe-navitem {
+    border: 0;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+  /* Below 720px of window width the rail collapses to icons (Side navigation). */
+  @media (max-width: 720px) {
+    .ewe-appwin .ewe-sidenav {
+      width: var(--control-2xl);
+      padding-inline: var(--space-xs);
+    }
+    .ewe-sidenav__name,
+    .ewe-navitem__label,
+    .ewe-sidenav__version,
+    .ewe-sidenav__note {
+      display: none;
+    }
+    .ewe-sidenav__brand,
+    .ewe-navitem {
+      justify-content: center;
+      padding-inline: 0;
+    }
+  }
+
+  /* ── the page (Settings page card) ─────────────────────────────────────── */
+  .page {
+    box-sizing: border-box;
+    /* content at most 720px (panel-lg + 5 × space-lg), left-aligned */
+    max-width: calc(var(--panel-lg) + 5 * var(--space-lg) + 2 * (var(--space-md) + var(--space-s)));
+    padding: 0 calc(var(--space-md) + var(--space-s)) var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  .page > .ewe-headerbar {
+    padding-bottom: calc(var(--space-s) + var(--space-xs));
+  }
+  /* a group: overline section header, 8px, then its list well; 24px above */
+  .group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+    margin-top: calc(var(--space-md) - var(--space-s));
+  }
+  .page > .ewe-headerbar + .group,
+  .page > .ewe-headerbar + * {
+    margin-top: 0;
+  }
+  .group > .ewe-section {
+    min-height: var(--control-sm);
+  }
+  /* setting rows: descriptions explain the setting, so they wrap instead of
+     truncating (Georgian runs about 30% longer; Writing guide) */
+  .page .ewe-row__desc,
+  .page .ewe-row__title {
+    white-space: normal;
+  }
+  .page .ewe-row__trail {
+    color: var(--text-secondary);
+  }
+  .ewe-row__trail > .ewe-seg,
+  .ewe-row__trail > .ewe-select {
+    flex: none;
+  }
+  .ewe-row--block {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-s);
+  }
+  .ewe-row.is-dim .ewe-row__title,
+  .ewe-row.is-dim .ewe-row__desc,
+  .ewe-row.is-dim .ewe-slider__value {
+    color: var(--text-disabled);
+  }
+  .ewe-list > .ewe-row + .ewe-row,
+  .ewe-list > * + .ewe-row {
+    margin-top: var(--space-xxs);
+  }
+  /* explanatory text under a group (help right where it is: UX value 10) */
+  .note {
+    margin: 0;
+    padding: 0 var(--space-s);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-muted);
+  }
+  /* a native <select> or <input> that is an .ewe-input box */
+  select.ewe-input {
+    appearance: auto;
+    cursor: pointer;
+  }
+
+  /* ── overlays: open motion (README "Motion": base, fade + 4px slide) ───── */
+
+  .ewe-menu[data-state="open"],
+  .ewe-popover[data-state="open"] {
+    animation: ewe-in-down var(--dur-base) var(--ease-out);
+  }
+  .ewe-menu[data-side="top"][data-state="open"] {
+    animation-name: ewe-in-up;
+  }
+  .ewe-sheet[data-state="open"] {
+    animation: ewe-in-left var(--dur-base) var(--ease-out);
+  }
+  .ewe-dialog[data-state="open"] {
+    animation: ewe-fade var(--dur-base) var(--ease-out);
+  }
+  .ewe-toast {
+    animation: ewe-in-up var(--dur-base) var(--ease-out);
+  }
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: var(--scrim);
+    animation: ewe-fade var(--dur-base) var(--ease-out);
+  }
+  .ewe-menu,
+  .ewe-popover {
+    z-index: 50;
+    outline: none;
+  }
+  .ewe-menu {
+    max-height: var(--bits-select-content-available-height, calc(10 * var(--control-lg)));
+    overflow-y: auto;
+  }
+  .ewe-sheet.is-floating {
+    position: fixed;
+    top: var(--window-gap);
+    right: var(--window-gap);
+    bottom: var(--window-gap);
+    z-index: 45;
+    max-width: calc(100vw - 2 * var(--window-gap));
+  }
+  .ewe-sheet__body {
+    overflow-y: auto;
+  }
+  .ewe-dialog.is-floating {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 50;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 2 * var(--space-md));
+  }
+  .toasts {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--space-s) + var(--space-xs));
+    z-index: 60;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .toasts > .ewe-toast {
+    pointer-events: auto;
+    width: max-content;
+    max-width: min(var(--panel-lg), calc(100vw - 2 * var(--space-md)));
+  }
+  .ewe-toast__timer {
+    transform-origin: left;
+    width: 100%;
+  }
+
+  .ewe-toast__timer {
+    animation-name: toast-timer;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  .ewe-toast:hover .ewe-toast__timer,
+  .ewe-toast:focus-within .ewe-toast__timer {
+    animation-play-state: paused;
+  }
+  .ewe-tooltip {
+    z-index: 70;
+  }
+
+  /* ── control details the cards leave to the build ───────────────────────── */
+  /* Icon button, destructive (Remove, Forget): the hover of a danger menu row */
+  .ewe-iconbtn.is-danger:hover:not(:disabled) {
+    background: var(--danger-subtle);
+    color: var(--danger);
+  }
+  /* Slider: bits-ui's root is a control-sm tall hit area around the track */
+  .slider-hit {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    height: var(--control-sm);
+    touch-action: none;
+    cursor: pointer;
+  }
+  .slider-hit .ewe-slider__track {
+    flex: 1;
+  }
+  .slider-hit .ewe-slider__fill {
+    width: auto;
+  }
+  .slider-hit .ewe-slider__thumb {
+    transform: translateY(-50%);
+  }
+  .slider-hit[data-disabled] {
+    cursor: not-allowed;
+  }
+  .slider-hit[data-disabled] .ewe-slider__fill,
+  .slider-hit[data-disabled] .ewe-slider__thumb {
+    background: var(--text-disabled);
+  }
+  .slider-trail {
+    width: calc(8 * var(--control-md));
+  }
+  .slider-value {
+    white-space: nowrap;
+  }
+  /* Select trigger in a row: sized to its value, never narrower than a word */
+  .select-trigger {
+    min-width: calc(4 * var(--control-md));
+    max-width: calc(10 * var(--control-md));
+  }
+  .kv-value {
+    min-width: 0;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .kv-row {
+    min-height: var(--control-md);
+  }
+  .kv-row .ewe-row__text {
+    flex: none;
+  }
+  .kv-row .ewe-row__trail {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+  .ewe-sidenav__logo {
+    display: inline-flex;
+  }
+  .ewe-sidenav__logo > svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+  }
+  .ewe-sidenav__note {
+    margin: 0;
+    padding: var(--space-xs) var(--space-s);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--warning);
+  }
+  .error-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
-.rail .rail-brand-name {
-  font-size: var(--fs-500);
-  line-height: var(--lh-500);
+@layer components {
+  /* inside the pane, cards sit on surface-overlay like lists (App shell) */
+  .ewe-appwin__pane .ewe-card {
+    background: var(--surface-overlay);
+  }
+  .ewe-appwin__pane .ewe-card--interactive:hover:not(:disabled) {
+    background: var(--surface-hover);
+  }
+  .ewe-appwin__pane .ewe-card.is-selected {
+    background: var(--accent-subtle);
+  }
 }
-.rail-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: var(--radius-pill);
-  background: var(--fg-4);
-  transition: background-color 150ms ease;
+
+@layer components {
+  /* ── ewe-sync ─────────────────────────────────────────────────────────── */
+  /* the rail footer: the account and its sync state as a Badge dot */
+  .sync-state {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    min-height: var(--control-md);
+    padding: 0 var(--space-s);
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+    color: var(--text-secondary);
+  }
+  @media (max-width: 720px) {
+    .sync-state {
+      justify-content: center;
+      padding: 0;
+    }
+  }
+  /* a row that is a button (providers, the console link) */
+  .row-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+  }
+  .row-button .ewe-row__text {
+    display: flex;
+  }
+  .ewe-row__lead > .ewe-avatar,
+  .ewe-row__lead > .ewe-row__lead--tile {
+    flex: none;
+  }
+  .avatar-img {
+    object-fit: cover;
+  }
+  .ewe-row.is-active .ewe-row__title {
+    font-weight: var(--font-weight-medium);
+  }
+  .kv-key {
+    color: var(--text-muted);
+  }
+  .kv-value .ewe-badge {
+    flex: none;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr calc(4 * var(--control-md));
+    gap: calc(var(--space-s) + var(--space-xs));
+  }
+  .signin-line {
+    display: flex;
+    gap: var(--space-s);
+  }
+  .signin-line > .ewe-input {
+    flex: 1;
+  }
+  .mono-input {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .ewe-input.ewe-mono {
+    font-size: var(--font-size-s);
+  }
+  textarea.ewe-input {
+    resize: vertical;
+  }
+  .waiting {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    color: var(--text-secondary);
+  }
+  .link-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+  }
+  .link-row--inset {
+    padding: var(--space-xs) var(--space-s) var(--space-s);
+  }
+  button.ewe-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: var(--font-weight-medium);
+  }
+  .ewe-btn.danger-text {
+    color: var(--danger);
+  }
+  .ewe-btn.danger-text:hover:not(:disabled) {
+    background: var(--danger-subtle);
+  }
+  .ewe-btn.danger-text:disabled {
+    color: var(--text-disabled);
+  }
+  .iconbtn-row {
+    display: inline-flex;
+    gap: var(--space-xxs);
+  }
+  .folder-path {
+    color: var(--text-primary);
+  }
+  .error-log {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--danger);
+    white-space: pre-wrap;
+    user-select: text;
+  }
+  .ewe-empty--compact .ewe-empty__desc {
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+  }
+  .ewe-dialog__icon > .ewe-icon {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
 }
-.rail-dot.is-connected { background: var(--success); }
-.rail-dot.is-busy { background: var(--warning); }
-.rail-dot.is-error { background: var(--danger); }

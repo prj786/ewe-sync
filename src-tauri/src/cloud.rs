@@ -38,6 +38,10 @@ pub async fn de_prefs() -> Result<Value, String> {
         "themeDensity": j["themeDensity"].as_str().unwrap_or(""),
         "themeStroke": j["themeStroke"].as_str().unwrap_or(""),
         "neutralTint": j["neutralTint"].as_i64().unwrap_or(-1),
+        // the whole file too: the scheme, look presets and accessibility
+        // modes ride in it as well, and the front end keys its theme
+        // refresh on all of it (lib/theme.js watchTheme)
+        "raw": j.clone(),
     }))
 }
 

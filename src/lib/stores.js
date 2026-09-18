@@ -37,17 +37,22 @@ export const trayState = derived([cloud, sync, busy, folders], ([$c, $s, $b, $f]
   return "idle";
 });
 
-export const toasts = writable([]);
-let toastId = 0;
-export function toast(message, type = "info", ms) {
-  const id = ++toastId;
-  const timeout = ms ?? (type === "error" ? 8000 : 4000);
-  toasts.update((t) => [...t, { id, message: String(message), type }]);
-  setTimeout(() => dismissToast(id), timeout);
+// The Toast (design/system/components/Toast): one at a time, a new one
+// replaces the current one. 5 s, or 8 s when it carries an action; the
+// component pauses the timer while it is hovered or focused. `message` may
+// name the thing in **bold**. tone: "info" | "success" | "warning" | "danger"
+// ("error", the old name, is danger).
+export const currentToast = writable(null);
+let toastSeq = 0;
+export function toast(message, tone = "info", ms = 0, action = null) {
+  const t = tone === "error" ? "danger" : tone;
+  const timeout = ms || (action ? 8000 : 5000);
+  const id = ++toastSeq;
+  currentToast.set({ id, message: String(message), tone: t, action, timeout });
   return id;
 }
 export function dismissToast(id) {
-  toasts.update((t) => t.filter((x) => x.id !== id));
+  currentToast.update((t) => (t && (id == null || t.id === id) ? null : t));
 }
 
 /** ISO/epoch → "2 Sep, 15:04" (local), "" when unknown */
@@ -62,9 +67,9 @@ export function fmtBytes(n) {
   n = Number(n) || 0;
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
-  while (n >= 1024 && i < u.length - 1) {
-    n /= 1024;
+  while (n >= 1000 && i < u.length - 1) {
+    n /= 1000;
     i++;
   }
-  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${u[i]}`;
+  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)}\u00a0${u[i]}`;
 }

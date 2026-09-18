@@ -2,6 +2,13 @@
   import { onMount } from "svelte";
   import * as api from "../api";
   import { cloud, folders, busy, toast, fmtTime } from "../stores";
+  import Page from "./ui/Page.svelte";
+  import Group from "./ui/Group.svelte";
+  import Row from "./ui/Row.svelte";
+  import Alert from "./ui/Alert.svelte";
+  import Empty from "./ui/Empty.svelte";
+  import IconBtn from "./ui/IconBtn.svelte";
+  import Icon from "./ui/Icon.svelte";
 
   // the list comes from the runner: pairs (from ewe.conf) + this machine's state
   let editing = $state(null); // null | { index: -1 (new) | n, pair: {...}, excludeText }
@@ -9,9 +16,9 @@
   let error = $state("");
 
   const MODES = [
-    ["two-way", "Two-way — the Nextcloud sync engine"],
-    ["upload", "Upload only — copy local files to the account"],
-    ["download", "Download only — copy the account's files here"]
+    ["two-way", "Two-way: the Nextcloud sync engine"],
+    ["upload", "Upload only: copy local files to the account"],
+    ["download", "Download only: copy the account’s files here"]
   ];
   const TRIGGERS = [
     ["change", "When something changes"],
@@ -87,7 +94,7 @@
   async function resolve(key, path, keep) {
     try {
       folders.set(await api.foldersResolve(key, path, keep));
-      toast(keep === "mine" ? "Kept your copy — it uploads on the next run" : "Kept the account's copy", "success");
+      toast(keep === "mine" ? "Kept your copy. It uploads on the next run." : "Kept the account’s copy", "success");
     } catch (e) {
       toast(String(e), "error", 8000);
     }
@@ -100,12 +107,15 @@
     if (it.last_run) return "Up to date";
     return "Never run";
   }
-  function statusClass(it) {
-    if (it.running) return "text-link";
-    if (it.conflicts?.length) return "text-warning";
-    if (it.last_error) return "text-danger";
-    return "text-dim";
+  function statusTone(it) {
+    if (it.running) return "ewe-badge--accent";
+    if (it.conflicts?.length) return "ewe-badge--warning";
+    if (it.last_error) return "ewe-badge--danger";
+    if (it.last_run) return "ewe-badge--success";
+    return "";
   }
+  const MODE_WORD = { "two-way": "Two-way", upload: "Upload only", download: "Download only" };
+  const MODE_ICON = { "two-way": "arrowBoth", upload: "arrowUp", download: "arrowDown" };
   function triggerText(p) {
     if (p.trigger === "interval") return `every ${p.interval} min`;
     if (p.trigger === "login") return "at login";
@@ -113,124 +123,164 @@
   }
 </script>
 
-<div class="mx-auto max-w-2xl">
-  <div class="section-title">Folders</div>
+{#snippet addAction()}
+  <button class="ewe-btn ewe-btn--secondary" disabled={!!$busy} onclick={() => startAdd("", "")}>
+    <Icon name="plus" />Add folder
+  </button>
+{/snippet}
 
+<Page
+  title="Folders"
+  desc="Folders on this machine kept in step with your account."
+  actions={$cloud?.signed_in && items.length && !editing ? addAction : undefined}
+>
   {#if !$cloud?.signed_in}
-    <div class="card px-4 py-4 text-sm text-dim">Sign in first — folders sync with your account.</div>
+    <Group title="Folders">
+      <Empty compact icon="folder" title="Not signed in" desc="Sign in first: folders sync with your account." />
+    </Group>
   {:else}
     {#if error}
-      <div class="mb-3 border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-3 py-2 text-xs text-danger" style="border-radius: var(--radius-card)">{error}</div>
+      <Alert tone="danger" title="Couldn’t save the folders" dismiss={() => (error = "")}>{error}</Alert>
     {/if}
 
     {#if !items.length && !editing}
-      <div class="card px-4 py-4 text-sm">
-        <div class="font-medium">Sync ~/Nextcloud with your account</div>
-        <div class="mt-1 text-xs text-dim">
-          Two-way, whenever something changes — the whole account into one folder on this machine. Opt in below, or add any folder pair you like.
-        </div>
-        <div class="mt-3 flex gap-2">
-          <button class="btn-primary" onclick={() => startAdd("/", "~/Nextcloud")}>Set up</button>
-          <button class="btn-ghost" onclick={() => startAdd("", "")}>Add another folder</button>
-        </div>
-      </div>
-    {/if}
-
-    {#each items as it, i (it.key)}
-      <div class="card mb-3 divide-y divide-hairline">
-        <div class="flex items-center gap-3 px-4 py-3">
-          <span class="icon text-[18px] text-dim">{String.fromCodePoint(0xE247)}</span>
-          <div class="min-w-0 flex-1">
-            <div class="truncate font-mono text-xs">{it.local_effective}</div>
-            <div class="truncate text-xs text-dim">
-              {it.pair.mode === "download" ? "←" : it.pair.mode === "upload" ? "→" : "↔"}
-              {it.pair.remote || "/"} · {it.pair.mode} · {triggerText(it.pair)}
-              {#if it.last_run}· last run {fmtTime(it.last_run)}{/if}
+      <Group title="Get started" well={false}>
+        <div class="ewe-card">
+          <div class="ewe-card__head">
+            <span class="ewe-card__icon ewe-card__icon--accent"><Icon name="folderSync" /></span>
+            <div class="ewe-card__titles">
+              <div class="ewe-card__title">Sync ~/Nextcloud with your account</div>
+              <div class="ewe-card__desc">
+                Two-way, whenever something changes: the whole account in one folder on this machine. Set it up, or
+                add any folder pair you like.
+              </div>
             </div>
           </div>
-          <span class="shrink-0 text-xs {statusClass(it)}">{statusText(it)}</span>
-          <button class="btn-ghost !py-1 text-xs" disabled={it.running || !!$busy} onclick={() => runOne(it.key)}>Sync now</button>
-          <button class="btn-ghost !py-1 text-xs" disabled={!!$busy} onclick={() => startEdit(i)}>Edit</button>
-          <button class="btn-ghost !py-1 text-xs text-danger" disabled={!!$busy} onclick={() => remove(i)}>Remove</button>
+          <div class="ewe-card__foot">
+            <button class="ewe-btn ewe-btn--ghost" onclick={() => startAdd("", "")}>Add another folder</button>
+            <button class="ewe-btn ewe-btn--primary" onclick={() => startAdd("/", "~/Nextcloud")}>Set up</button>
+          </div>
         </div>
-        {#if it.last_error}
-          <div class="px-4 py-2 font-mono text-[11px] whitespace-pre-wrap text-danger">{it.last_error}</div>
-        {/if}
-        {#if it.conflicts?.length}
-          <div class="px-4 py-2">
-            <button class="text-xs text-warning" onclick={() => (openConflicts[it.key] = !openConflicts[it.key])}>
-              {openConflicts[it.key] ? "Hide" : "Show"} {it.conflicts.length} conflict{it.conflicts.length === 1 ? "" : "s"}
-            </button>
+      </Group>
+    {/if}
+
+    {#if items.length}
+      <Group title={`Folders · ${items.length}`}>
+        {#each items as it, i (it.key)}
+          {#if i > 0}<div class="ewe-list__divider"></div>{/if}
+          <Row
+            class="folder-row"
+            sub={`${it.pair.remote || "/"} · ${MODE_WORD[it.pair.mode] || it.pair.mode} · ${triggerText(it.pair)}${it.last_run ? ` · last run ${fmtTime(it.last_run)}` : ""}`}
+          >
+            {#snippet lead()}
+              <span class="ewe-row__lead ewe-row__lead--tile"><Icon name={MODE_ICON[it.pair.mode] || "folder"} /></span>
+            {/snippet}
+            {#snippet text()}
+              <div class="ewe-row__title ewe-mono folder-path" title={it.local_effective}>{it.local_effective}</div>
+            {/snippet}
+            <span class="ewe-badge {statusTone(it)}"><span class="ewe-badge__label">{statusText(it)}</span></span>
+            <span class="iconbtn-row">
+              <IconBtn name="refresh" title="Sync now" disabled={it.running || !!$busy} go={() => runOne(it.key)} />
+              <IconBtn name="pencil" title="Edit" disabled={!!$busy} go={() => startEdit(i)} />
+              <IconBtn name="trash" title="Remove" danger disabled={!!$busy} go={() => remove(i)} />
+            </span>
+          </Row>
+          {#if it.last_error}
+            <div class="ewe-row ewe-row--block"><pre class="error-log">{it.last_error}</pre></div>
+          {/if}
+          {#if it.conflicts?.length}
+            <Row
+              dense
+              title="Both sides changed the same file"
+              sub="Keep yours (it replaces the account’s copy on the next run) or keep the account’s."
+            >
+              <button
+                class="ewe-btn ewe-btn--sm ewe-btn--ghost"
+                aria-expanded={!!openConflicts[it.key]}
+                onclick={() => (openConflicts[it.key] = !openConflicts[it.key])}
+              >
+                {openConflicts[it.key] ? "Hide" : "Show"}
+                {it.conflicts.length} conflict{it.conflicts.length === 1 ? "" : "s"}
+              </button>
+            </Row>
             {#if openConflicts[it.key]}
-              <div class="mt-2 text-xs text-dim">
-                Both sides changed the same file. Keep yours (it replaces the account's copy on the next run) or keep the account's.
-              </div>
               {#each it.conflicts as c (c)}
-                <div class="mt-1 flex items-center gap-2">
-                  <span class="min-w-0 flex-1 truncate font-mono text-[11px]">{c}</span>
-                  <button class="btn-ghost !py-0.5 text-xs" onclick={() => resolve(it.key, c, "mine")}>Keep mine</button>
-                  <button class="btn-ghost !py-0.5 text-xs" onclick={() => resolve(it.key, c, "theirs")}>Keep theirs</button>
-                </div>
+                <Row dense>
+                  {#snippet text()}
+                    <div class="ewe-row__title ewe-mono" title={c}>{c}</div>
+                  {/snippet}
+                  <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => resolve(it.key, c, "mine")}>Keep mine</button>
+                  <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" onclick={() => resolve(it.key, c, "theirs")}>Keep theirs</button>
+                </Row>
               {/each}
             {/if}
-          </div>
-        {/if}
-      </div>
-    {/each}
-
-    {#if items.length && !editing}
-      <button class="btn-ghost text-xs" onclick={() => startAdd("", "")}>+ Add folder</button>
+          {/if}
+        {/each}
+      </Group>
     {/if}
 
     {#if editing}
-      <div class="card mt-3 px-4 py-4">
-        <div class="mb-3 text-sm font-medium">{editing.index < 0 ? "Add folder" : "Edit folder"}</div>
-        <div class="grid gap-3">
-          <label class="grid gap-1 text-xs">
-            <span class="text-dim">Local folder on this machine</span>
-            <input class="input font-mono" placeholder="~/Documents" bind:value={editing.pair.local} />
+      <Group title={editing.index < 0 ? "Add folder" : "Edit folder"} well={false}>
+        <div class="ewe-card">
+          <label class="ewe-field">
+            <span class="ewe-field__label">Local folder on this machine</span>
+            <input class="ewe-input ewe-mono" placeholder="~/Documents" bind:value={editing.pair.local} />
           </label>
-          <label class="grid gap-1 text-xs">
-            <span class="text-dim">Folder in your account</span>
-            <input class="input font-mono" placeholder="/ (everything) or /Documents" bind:value={editing.pair.remote} />
+          <label class="ewe-field">
+            <span class="ewe-field__label">Folder in your account</span>
+            <input class="ewe-input ewe-mono" placeholder="/ (everything) or /Documents" bind:value={editing.pair.remote} />
           </label>
-          <label class="grid gap-1 text-xs">
-            <span class="text-dim">Mode</span>
-            <select class="input" bind:value={editing.pair.mode}>
+          <label class="ewe-field">
+            <span class="ewe-field__label">Mode</span>
+            <select class="ewe-input" bind:value={editing.pair.mode}>
               {#each MODES as [v, l]}<option value={v}>{l}</option>{/each}
             </select>
           </label>
-          <div class="grid grid-cols-2 gap-3">
-            <label class="grid gap-1 text-xs">
-              <span class="text-dim">Run</span>
-              <select class="input" bind:value={editing.pair.trigger}>
+          <div class="form-grid">
+            <label class="ewe-field form-grid__wide">
+              <span class="ewe-field__label">Run</span>
+              <select class="ewe-input" bind:value={editing.pair.trigger}>
                 {#each TRIGGERS as [v, l]}<option value={v}>{l}</option>{/each}
               </select>
             </label>
-            <label class="grid gap-1 text-xs">
-              <span class="text-dim">Minutes</span>
-              <input class="input" type="number" min="1" max="1440" disabled={editing.pair.trigger !== "interval"} bind:value={editing.pair.interval} />
+            <label class="ewe-field">
+              <span class="ewe-field__label">Minutes</span>
+              <input
+                class="ewe-input mono-input"
+                type="number"
+                min="1"
+                max="1440"
+                disabled={editing.pair.trigger !== "interval"}
+                bind:value={editing.pair.interval}
+              />
             </label>
           </div>
-          <label class="grid gap-1 text-xs">
-            <span class="text-dim">Exclude (one pattern per line)</span>
-            <textarea class="input font-mono" rows="3" placeholder=".git&#10;node_modules" bind:value={editing.excludeText}></textarea>
+          <label class="ewe-field">
+            <span class="ewe-field__label">Exclude <span class="ewe-field__optional">optional</span></span>
+            <textarea
+              class="ewe-input ewe-input--multiline ewe-mono"
+              rows="3"
+              placeholder={".git\nnode_modules"}
+              bind:value={editing.excludeText}
+            ></textarea>
+            <span class="ewe-field__helper">One pattern per line.</span>
           </label>
           {#if editing.pair.mode === "two-way" && engines.nextcloudcmd === false}
-            <div class="text-xs text-warning">nextcloudcmd is not installed — two-way sync needs the nextcloud-client package.</div>
+            <Alert tone="warning" title="nextcloudcmd isn’t installed">Two-way sync needs the nextcloud-client package.</Alert>
           {:else if editing.pair.mode !== "two-way" && engines.rclone === false}
-            <div class="text-xs text-warning">rclone is not installed — one-way folders need it.</div>
+            <Alert tone="warning" title="rclone isn’t installed">One-way folders need it.</Alert>
           {/if}
-          <div class="flex gap-2">
-            <button class="btn-primary" disabled={!!$busy} onclick={save}>Save</button>
-            <button class="btn-ghost" onclick={cancel}>Cancel</button>
+          <div class="ewe-card__foot">
+            <button class="ewe-btn ewe-btn--ghost" onclick={cancel}>Cancel</button>
+            <button class="ewe-btn ewe-btn--primary" disabled={!!$busy} onclick={save}>Save</button>
           </div>
         </div>
-      </div>
+      </Group>
     {/if}
 
-    <div class="mt-4 text-xs text-dim">
-      Two-way folders run the Nextcloud sync engine (<code>nextcloudcmd</code>); one-way folders copy with rclone and never delete. Folder definitions live in <code>ewe.conf</code> and follow you to every machine; the local path can differ per machine.
-    </div>
+    <p class="note">
+      Two-way folders run the Nextcloud sync engine (nextcloudcmd); one-way folders copy with rclone and never delete.
+      Folder definitions live in ewe.conf and follow you to every machine; the local path can differ per machine.
+    </p>
   {/if}
-</div>
+</Page>

@@ -1,62 +1,24 @@
 <script>
-  /** Controlled switch: `on` is the truth, `toggled()` reports intent. */
-  let { on = false, disabled = false, toggled = () => {} } = $props();
+  /**
+   * Switch (design/system/components/Switch): a button with the switch role;
+   * the look is .ewe-switch, `is-on` when checked. The thumb carries a small
+   * x or check so the state never rests on colour alone. Controlled: `on` is
+   * the truth, `toggled(next)` reports intent.
+   */
+  import Icon from "./Icon.svelte";
+  let { on = false, disabled = false, label = "", toggled = () => {} } = $props();
 </script>
 
-<!-- 38×22 track, 18px thumb; the track is a recessed well (--bg-2) until it
-     fills with the brand. No edge — the layer step separates it. -->
 <button
   type="button"
   role="switch"
   aria-checked={on}
+  aria-label={label || undefined}
   {disabled}
-  class="toggle {on ? 'is-on' : ''}"
-  onclick={() => toggled()}
+  class="ewe-switch"
+  class:is-on={on}
+  class:is-disabled={disabled}
+  onclick={() => toggled(!on)}
 >
-  <span class="toggle-thumb"></span>
+  <span class="ewe-switch__thumb"><Icon name={on ? "check" : "x"} /></span>
 </button>
-
-<style>
-  .toggle {
-    position: relative;
-    display: inline-block;
-    width: 38px;
-    height: 22px;
-    flex-shrink: 0;
-    border-radius: var(--radius-pill);
-    background: var(--bg-2);
-    transition: background-color 150ms ease;
-  }
-  .toggle:hover {
-    background: var(--bg-2-hover);
-  }
-  .toggle.is-on,
-  .toggle.is-on:hover {
-    background: var(--brand-bg);
-  }
-  .toggle.is-on:hover {
-    background: var(--brand-bg-hover);
-  }
-  .toggle:disabled {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-  .toggle:focus-visible {
-    outline: var(--focus-width) solid var(--stroke-focus-2);
-    outline-offset: 1px;
-  }
-  .toggle-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 18px;
-    height: 18px;
-    border-radius: var(--radius-pill);
-    background: var(--fg-3);
-    transition: background-color 150ms ease;
-  }
-  .toggle.is-on .toggle-thumb {
-    left: 18px;
-    background: var(--fg-on-brand);
-  }
-</style>

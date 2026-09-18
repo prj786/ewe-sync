@@ -14,56 +14,33 @@
   import Machines from "./lib/components/Machines.svelte";
   import Folders from "./lib/components/Folders.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
+  import { watchTheme } from "./lib/theme.js";
 
-  // ewe is dark by decision; the class is on <html> already. Follow the DE's
-  // accent and surface live (re-read on focus + a light poll), like Komble.
-  // The look, live. tokens.css is compiled in as the fallback, and it is built
-  // from the DEFAULT accent — so on its own the app wears the wrong greys the
-  // moment the user picks an accent. These values come from `ewe-theme show`,
-  // which reads THIS machine's ewe.conf, so the whole derived set lands:
-  // the brand ramp, and the neutrals carrying the accent's tint.
-  //
-  // Keyed on the whole THEME INPUT — accent, corner, density, stroke and
-  // neutral tint. Keying on the accent alone meant a corner or density change
-  // rewrote ewe.conf, moved the shell, then hit this guard and returned early:
-  // "shape and density need a restart" was this one comparison.
-  let injectedKey = "";
-  async function applyThemeTokens(themeKey) {
-    const key = String(themeKey || "");
-    if (key === injectedKey) return;
-    injectedKey = key;
-    try {
-      const t = await api.themeTokens("ewe");
-      if (!t || !t.css_vars) return;
-      for (const [k, v] of Object.entries(t.css_vars)) {
-        document.documentElement.style.setProperty(k, v);
+  // The look, live (lib/theme.js): `ewe-theme show` at start, on focus, and
+  // whenever the DE's user-theme.json changes — its whole content is the
+  // key, so a scheme, light/dark, accent, look preset or accessibility mode
+  // picked in Settings reaches this window while it sits in another tile.
+  const themeKey = async () => {
+    const p = await api.dePrefs();
+    return JSON.stringify(p?.raw ?? p ?? null);
+  };
+
+  // the sections (Side navigation); Ctrl+1 … Ctrl+6 jump to them
+  const NAV = [
+    { id: "account", label: "Account", icon: "user" },
+    { id: "mail", label: "Mail", icon: "mail" },
+    { id: "google", label: "Google", icon: "globe" },
+    { id: "machine", label: "This machine", icon: "monitor" },
+    { id: "machines", label: "Machines", icon: "machines" },
+    { id: "folders", label: "Folders", icon: "folderSync" }
+  ];
+  function globalKey(e) {
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) {
+      const it = NAV[Number(e.key) - 1];
+      if (it) {
+        e.preventDefault();
+        route.set(it.id);
       }
-    } catch {
-      injectedKey = "";   // let a later attempt retry
-      /* ewe-theme absent (dev, or ewe not deployed) — the compiled-in
-         tokens.css already carries the default look */
-    }
-  }
-
-  async function applyDePrefs() {
-    try {
-      const p = await api.dePrefs();
-      if (!p) return;
-      // "" = never picked, so the theme default in tokens.css stands
-      if (p.accent) document.documentElement.style.setProperty("--accent", p.accent);
-      else document.documentElement.style.removeProperty("--accent");
-      document.documentElement.classList.toggle("dark", (p.colorScheme || "dark") !== "light");
-      // everything ewe-theme derives its token set FROM, as one key. Keying
-      // on the accent alone left corner/density changes at the app boundary.
-      applyThemeTokens([
-        p.accent || "",
-        p.themeCorner || "",
-        p.themeDensity || "",
-        p.themeStroke || "",
-        p.neutralTint === undefined ? "" : String(p.neutralTint)
-      ].join("|"));
-    } catch {
-      /* outside the desktop */
     }
   }
 
@@ -110,9 +87,9 @@
       if (get(folders)?.pairs?.length) api.foldersRunAll().catch(() => {});
       const r = await api.push(false);
       if (r.ok) toast("Settings backed up", "success");
-      else if (r.error === "remote-newer") toast("Another machine saved newer settings — restore it first, or push anyway from This machine.", "error");
-      else if (r.error === "remote-exists") toast("A backup already exists — restore it first, or push anyway from This machine.", "error");
-      else toast(r.message || r.error || "Sync failed", "error");
+      else if (r.error === "remote-newer") toast("Another machine saved newer settings. Restore them first, or push anyway from This machine.", "danger");
+      else if (r.error === "remote-exists") toast("A backup already exists. Restore it first, or push anyway from This machine.", "danger");
+      else toast(r.message || r.error || "Couldn’t sync. Try again.", "danger");
     } catch (e) {
       toast(String(e), "error");
     } finally {
@@ -145,13 +122,7 @@
       if (ROUTES.includes(r) && location.hash !== "#" + r) history.replaceState(null, "", "#" + r);
     }));
     (async () => {
-      applyDePrefs();
-      window.addEventListener("focus", applyDePrefs);
-      const deTimer = setInterval(applyDePrefs, 4000);
-      unlisteners.push(() => {
-        window.removeEventListener("focus", applyDePrefs);
-        clearInterval(deTimer);
-      });
+      unlisteners.push(watchTheme(themeKey));
 
       await refresh();
       const timer = setInterval(refresh, 30000);
@@ -190,22 +161,27 @@
   });
 </script>
 
-<div class="surface flex h-full">
-  <Sidebar />
-  <main class="pane px-6 py-5">
-    {#if $route === "account"}
-      <Account {refresh} />
-    {:else if $route === "mail"}
-      <Mail {refresh} />
-    {:else if $route === "google"}
-      <Google {refresh} />
-    {:else if $route === "machine"}
-      <ThisMachine {refresh} {syncNow} />
-    {:else if $route === "machines"}
-      <Machines />
-    {:else}
-      <Folders />
-    {/if}
+<svelte:window onkeydown={globalKey} />
+
+<div class="ewe-appwin">
+  <Sidebar items={NAV} />
+  <!-- the pane: the main landmark, inset from the window's edges (App shell) -->
+  <main class="ewe-appwin__pane">
+    <div class="ewe-appwin__scroll">
+      {#if $route === "account"}
+        <Account {refresh} />
+      {:else if $route === "mail"}
+        <Mail {refresh} />
+      {:else if $route === "google"}
+        <Google {refresh} />
+      {:else if $route === "machine"}
+        <ThisMachine {refresh} {syncNow} />
+      {:else if $route === "machines"}
+        <Machines />
+      {:else}
+        <Folders />
+      {/if}
+    </div>
   </main>
-  <Toasts />
 </div>
+<Toasts />

@@ -8,6 +8,13 @@
   // desktop's behaviour, not part of the account.
   import * as api from "../api";
   import { mail, toast } from "../stores";
+  import Page from "./ui/Page.svelte";
+  import Group from "./ui/Group.svelte";
+  import Row from "./ui/Row.svelte";
+  import Alert from "./ui/Alert.svelte";
+  import Empty from "./ui/Empty.svelte";
+  import Check from "./ui/Check.svelte";
+  import Icon from "./ui/Icon.svelte";
 
   let { refresh } = $props();
 
@@ -43,7 +50,7 @@
   async function save() {
     error = "";
     if (!host.trim() || !user.trim() || !password) {
-      error = "Server, user and password are all needed.";
+      error = "Enter the server, the user and the password.";
       return;
     }
     working = true;
@@ -52,11 +59,11 @@
       if (r?.ok) {
         password = "";
         open = false;
-        toast("Mail account added", "success");
+        toast(`Added **${user.trim()}**`, "success");
         await refresh();
       } else {
         // ewe-mail tests the login before storing, so this is the server talking
-        error = r?.message || r?.error || "Could not sign in to the mail server.";
+        error = r?.message || r?.error || "Couldn’t sign in to the mail server. Check the details and try again.";
       }
     } catch (e) {
       error = String(e);
@@ -69,7 +76,7 @@
     try {
       const r = await api.mailLogout();
       if (r && r.ok === false) toast(r.message || r.error, "error");
-      else toast("Mail account removed", "info");
+      else toast("Removed the mail account", "info");
       unseen = null;
       await refresh();
     } catch (e) {
@@ -91,86 +98,111 @@
   }
 </script>
 
-<div class="mx-auto max-w-2xl">
-  <div class="section-title">Mail · IMAP</div>
+{#snippet addAction()}
+  <button class="ewe-btn ewe-btn--primary" disabled={working} onclick={edit}><Icon name="plus" />Add account</button>
+{/snippet}
 
-  <div class="card divide-y divide-hairline">
-    <div class="flex items-center gap-3 px-4 py-4">
-      <div class="min-w-0 flex-1">
-        <div class="truncate text-base font-semibold">
-          {configured ? $mail.user : "No mail account"}
-        </div>
-        <div class="truncate text-xs text-dim">
-          {configured
-            ? `${$mail.host}:${$mail.port}`
-            : "Add the inbox your Nextcloud provider gives you, or any other IMAP server."}
-        </div>
-      </div>
-      {#if configured}
-        <button class="btn-ghost" disabled={working} onclick={check}>Check</button>
-        <button class="btn-ghost" disabled={working} onclick={remove}>Remove</button>
-      {/if}
-      <button class="btn-primary" disabled={working} onclick={() => (open ? (open = false) : edit())}>
-        {open ? "Cancel" : configured ? "Change…" : "Add account"}
-      </button>
-    </div>
-
-    {#if configured && $mail?.keyring_state && $mail.keyring_state !== "ok"}
-      <div class="px-4 py-2.5 text-xs text-warning">
-        The password is in the keyring, but the keyring is {$mail.keyring_state}. Mail stays quiet until it opens.
-      </div>
+<Page
+  title="Mail"
+  desc="Any IMAP mailbox: the inbox your Nextcloud provider gives you, one you host, or a work account."
+  actions={!configured && !open ? addAction : undefined}
+>
+  <Group title="Mailbox · IMAP">
+    {#if configured}
+      <Row icon="mail" title={$mail.user} sub={`${$mail.host}:${$mail.port}`}>
+        <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" disabled={working} onclick={check}>
+          <Icon name="refresh" />Check mail
+        </button>
+        <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" disabled={working} onclick={() => (open ? (open = false) : edit())}>
+          {open ? "Cancel" : "Change…"}
+        </button>
+        <button class="ewe-btn ewe-btn--sm ewe-btn--ghost danger-text" disabled={working} onclick={remove}>Remove</button>
+      </Row>
+    {:else}
+      <Empty
+        compact
+        icon="inbox"
+        title="No mail account"
+        desc="Add the inbox your Nextcloud provider gives you, or any other IMAP server."
+      />
     {/if}
+  </Group>
 
-    {#if unseen}
-      <div class="px-4 py-3">
-        <div class="text-xs text-dim">
-          {unseen.ok === false ? unseen.message || unseen.error : `${unseen.unread || 0} unread`}
-        </div>
+  {#if configured && $mail?.keyring_state && $mail.keyring_state !== "ok"}
+    <Alert tone="warning" title="The keyring is {$mail.keyring_state}">
+      The password is in the keyring. Mail stays quiet until the keyring opens.
+    </Alert>
+  {/if}
+
+  {#if unseen}
+    {#if unseen.ok === false}
+      <Alert tone="danger" title="Couldn’t check mail">{unseen.message || unseen.error}</Alert>
+    {:else}
+      <Group title={`Unread · ${unseen.unread || 0}`}>
         {#each unseen.list || [] as m}
-          <div class="mt-2 min-w-0">
-            <div class="truncate text-sm">{m.subject || "(no subject)"}</div>
-            <div class="truncate text-xs text-dim">{m.from || ""}</div>
-          </div>
+          <Row dense title={m.subject || "(no subject)"} sub={m.from || ""} />
+        {:else}
+          <Empty compact icon="inbox" title="No unread mail" />
         {/each}
-      </div>
+      </Group>
     {/if}
+  {/if}
 
-    {#if open}
-      <div class="px-4 py-4">
-        <div class="flex gap-2">
-          <input class="input flex-1" placeholder="imap.example.org" bind:value={host} disabled={working} />
-          <input class="input w-24" type="number" min="1" max="65535" bind:value={port} disabled={working} />
+  {#if open}
+    <Group title={configured ? "Change account" : "Add account"} well={false}>
+      <div class="ewe-card">
+        <div class="form-grid">
+          <label class="ewe-field form-grid__wide">
+            <span class="ewe-field__label">Server</span>
+            <input class="ewe-input" placeholder="imap.example.org" bind:value={host} disabled={working} />
+          </label>
+          <label class="ewe-field">
+            <span class="ewe-field__label">Port</span>
+            <input class="ewe-input mono-input" type="number" min="1" max="65535" bind:value={port} disabled={working} />
+          </label>
         </div>
-        <input class="input mt-2 w-full" placeholder="you@example.org" bind:value={user} disabled={working} autocomplete="username" />
-        <input
-          class="input mt-2 w-full"
-          type="password"
-          placeholder="Password"
-          bind:value={password}
-          disabled={working}
-          autocomplete="current-password"
-          onkeydown={(e) => e.key === "Enter" && save()}
-        />
-        <label class="mt-3 flex items-center gap-2 text-xs text-dim">
-          <input type="checkbox" checked={starttls} disabled={working} onchange={toggleStarttls} />
-          STARTTLS (port 143 servers) instead of TLS
+        <label class="ewe-field">
+          <span class="ewe-field__label">User</span>
+          <input class="ewe-input" placeholder="you@example.org" bind:value={user} disabled={working} autocomplete="username" />
         </label>
-        {#if error}<div class="mt-2 text-xs text-danger">{error}</div>{/if}
-        <div class="mt-3 flex items-center justify-between gap-3">
-          <div class="text-xs text-dim">
-            The password goes into the system keyring. Only the server, user and port are written to
-            <span class="font-mono">ewe.conf</span> — never the password.
-          </div>
-          <button class="btn-primary shrink-0" disabled={working} onclick={save}>
-            {working ? "Signing in…" : "Sign in"}
+        <label class="ewe-field">
+          <span class="ewe-field__label">Password</span>
+          <input
+            class="ewe-input"
+            class:is-error={!!error}
+            type="password"
+            bind:value={password}
+            disabled={working}
+            autocomplete="current-password"
+            onkeydown={(e) => e.key === "Enter" && save()}
+          />
+          {#if error}
+            <span class="ewe-field__helper ewe-field__helper--error"><Icon name="alert" />{error}</span>
+          {:else}
+            <span class="ewe-field__helper">
+              The password goes into the system keyring. Only the server, user and port are written to ewe.conf.
+            </span>
+          {/if}
+        </label>
+        <Check
+          checked={starttls}
+          disabled={working}
+          label="Use STARTTLS"
+          desc="For servers on port 143, instead of TLS on 993."
+          toggled={toggleStarttls}
+        />
+        <div class="ewe-card__foot">
+          <button class="ewe-btn ewe-btn--ghost" disabled={working} onclick={() => (open = false)}>Cancel</button>
+          <button class="ewe-btn ewe-btn--primary" disabled={working} onclick={save}>
+            {#if working}<span class="ewe-spinner ewe-spinner--sm ewe-spinner--on-accent" aria-hidden="true"></span>Signing in…{:else}Sign in{/if}
           </button>
         </div>
       </div>
-    {/if}
-  </div>
+    </Group>
+  {/if}
 
-  <div class="px-1 py-3 text-xs text-dim">
-    The unread badge lives in the Control Center. Whether new mail also raises a notification is a
-    per-machine setting, in Settings → User.
-  </div>
-</div>
+  <p class="note">
+    The unread badge lives in Quick settings. Whether new mail also raises a notification is a per-machine
+    setting, in Settings → User.
+  </p>
+</Page>
