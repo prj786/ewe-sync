@@ -1,6 +1,15 @@
 // Browser-only stand-in for the Tauri backend, so the UI can be opened (and
-// screenshotted) with `npm run build` + any static server: `?mock=1`, and
-// `&state=out` for the signed-out account. Never loaded inside Tauri.
+// screenshotted) with `npm run dev` (or a build + any static server):
+// `?mock=1`, and `&state=out` for the signed-out account. Never loaded
+// inside Tauri. Screenshot parameters, as in ewe-settings' dev-mock.html:
+//   scheme=ewe-dark|ewe-light|a11y   which theme_tokens reply to serve — real
+//                                    `ewe-theme show` output in .dev-mock/
+//                                    (git-ignored); without it tokens.css stands
+//   still                            no transitions or animations (headless
+//                                    screenshots freeze them mid-way)
+//   pane=<nav label>                 open that section ("Folders")
+//   click=<css selector>             click that element
+//   focus=<css selector>             keyboard-focus that element
 function iso(minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60000).toISOString();
 }
@@ -53,7 +62,10 @@ export function install(params) {
       { name: "ewe-vm", last_seen: iso(60 * 26), ewe_version: "0.9.22", apps_count: 6 }
     ]
   };
+  const scheme = params.get("scheme") || "ewe-dark";
   const handlers = {
+    theme_tokens: () =>
+      fetch(`/.dev-mock/theme-${scheme}.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error("no mock theme")))),
     de_prefs: () => ({
       accent: params.get("accent") || (params.get("theme") === "flock" ? "#ffcc00" : "#b1c5ff"),
       themeName: params.get("theme") === "flock" ? "flock" : "blacksheep",
@@ -125,6 +137,27 @@ export function install(params) {
     google_login: () => ({ ok: true }),
     google_logout: () => ({ ok: true })
   };
+  if (params.has("still")) {
+    const st = document.createElement("style");
+    st.textContent = "*,*::before,*::after{transition:none!important;animation:none!important}";
+    document.head.appendChild(st);
+  }
+  // install() runs before the app mounts (main.js), so the timers start from
+  // there rather than from "load", which may already have fired
+  {
+    const pane = params.get("pane");
+    setTimeout(() => {
+      if (pane) document.querySelector(`.ewe-navitem[title="${pane}"]`)?.click();
+      setTimeout(() => {
+        if (params.get("click")) document.querySelector(params.get("click"))?.click();
+        if (params.get("focus")) {
+          const el = document.querySelector(params.get("focus"));
+          // a real keyboard focus, so :focus-visible draws the ring
+          el?.focus({ focusVisible: true });
+        }
+      }, 400);
+    }, 300);
+  }
   window.__EWE_SYNC_MOCK__ = {
     invoke: (cmd, args) =>
       new Promise((res, rej) => {
