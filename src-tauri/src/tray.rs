@@ -29,12 +29,21 @@ pub fn tray_state(_app: AppHandle, state: String, tooltip: Option<String>) -> Re
 /// directly. Best-effort by design — outside the ewe desktop `qs` is simply
 /// not there, and the tray above is still the whole story.
 fn poke_shell(state: &str, detail: &str) {
-    let _ = std::process::Command::new("qs")
+    let child = std::process::Command::new("qs")
         .args(["ipc", "call", "sync", "state", state, detail])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn();
+    // Reap it. A spawned child nobody waits for stays a zombie for the life
+    // of this process: 39 `[qs] <defunct>` under a 20-minute-old ewe-sync
+    // on 2026-09-20, one per state poke, forever. The wait happens off the
+    // command thread so a wedged shell cannot stall the tray.
+    if let Ok(mut child) = child {
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
 }
 
 /// Kept for the frontend; there is no menu to relabel any more.
