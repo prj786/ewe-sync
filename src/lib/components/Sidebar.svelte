@@ -5,7 +5,7 @@
   // Ctrl+6 jump (App.svelte).
   import { onMount } from "svelte";
   import { getVersion } from "@tauri-apps/api/app";
-  import sheep from "../../assets/sheep.svg?raw";
+  import sheep from "../../assets/ewe-mark.svg?raw";
   import Icon from "./ui/Icon.svelte";
   import { route, cloud, trayState } from "../stores";
 
