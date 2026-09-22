@@ -16,6 +16,7 @@ for s in 32 64 128 256; do
 done
 cp "$out/256x256.png" "$out/128x128@2x.png"
 rsvg-convert -w 512 -h 512 packaging/ewe-sync.svg -o "$out/icon.png"
+# Tray state icons: dormant since 0.13 (nothing constructs a TrayIconBuilder — see src-tauri/src/tray.rs); kept transparent monochrome so the panel can tint them.
 for f in packaging/tray/*.svg; do
     n=$(basename "$f" .svg)
     rsvg-convert -w 22 -h 22 "$f" -o "$out/tray-$n.png"
