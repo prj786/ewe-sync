@@ -12,8 +12,8 @@ pkgname=ewe-sync
 # extracts to <repo>-<tag without the leading v>, so the source URL and
 # the directory below follow _tag, never pkgver. The release workflow
 # rewrites both.
-_tag=v0.14.3-beta
-pkgver=0.14.3beta
+_tag=v0.14.4-beta
+pkgver=0.14.4beta
 pkgrel=1
 pkgdesc="ewe-sync — your ewe account: the one file, your machines, your folders"
 arch=('x86_64' 'aarch64')

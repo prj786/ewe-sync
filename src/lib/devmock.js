@@ -10,6 +10,9 @@
 //   pane=<nav label>                 open that section ("Folders")
 //   click=<css selector>             click that element
 //   focus=<css selector>             keyboard-focus that element
+//   conflict=newer|mine|exists       a settings-sync conflict (another machine /
+//                                    this computer's own unrecorded copy /
+//                                    never synced + a backup exists)
 function iso(minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60000).toISOString();
 }
@@ -34,10 +37,17 @@ export function install(params) {
           quota: { used: 1288490188, total: 5368709120, relative: 24 },
           keyring: true, keyring_state: "ok", keyring_locked: false
         },
+    // conflict=newer|mine|exists: the settings-sync conflict states
     sync: {
-      ok: true, provider: "nextcloud", server, folder: "ewe", enabled: true,
-      remote_machine: "emoh", remote_modified: iso(120), recorded_remote_modified: iso(120),
-      local_synced_at: iso(10), local_mtime: Math.floor(Date.now() / 1000) - 600, in_sync: true
+      ok: true, provider: "nextcloud", server, folder: "ewe", enabled: true, error: null,
+      remote: { id: '"etag"', modifiedTime: iso(120), appProperties: { machine: "emoh" } },
+      remote_machine: params.get("conflict") === "newer" ? "work-pc" : "emoh",
+      remote_modified: iso(120), recorded_remote_modified: iso(120),
+      remote_is_this_machine: params.get("conflict") === "mine" ? true : params.get("conflict") === "newer" ? false : null,
+      local_synced_at: params.get("conflict") === "exists" ? "" : iso(10),
+      local_mtime: Math.floor(Date.now() / 1000) - 600,
+      conflict: { newer: "remote-newer", mine: "remote-newer", exists: "remote-exists" }[params.get("conflict")] || null,
+      in_sync: !params.get("conflict")
     },
     folders: {
       pairs: [
