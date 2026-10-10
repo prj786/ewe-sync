@@ -27,12 +27,29 @@ export const online = writable(true);
 
 export const signedIn = derived(cloud, ($c) => !!($c && $c.signed_in));
 
+/**
+ * The settings-sync conflict in an `ewe-conf sync-status` (or push) reply:
+ * "remote-newer" | "remote-exists" | null.
+ *
+ * `sync-status` never put the guard's verdict in `error` (that is the
+ * transport error), so keying on `error` alone meant the Push anyway /
+ * Restore banner never showed and a stuck machine had no way out. Newer
+ * ewe-conf answers `conflict`; an older one is read from `in_sync`.
+ */
+export function conflictOf(s) {
+  if (!s) return null;
+  if (s.error === "remote-newer" || s.error === "remote-exists") return s.error;
+  if ("conflict" in s) return s.conflict || null;
+  if (s.ok && s.remote && s.in_sync === false) return s.local_synced_at ? "remote-newer" : "remote-exists";
+  return null;
+}
+
 /** what the tray shows — derived from everything above */
 export const trayState = derived([cloud, sync, busy, folders], ([$c, $s, $b, $f]) => {
   if (!$c || !$c.signed_in) return "signed-out";
   if ($c.offline) return "offline";
   if ($b === "sync" || $b === "restore" || $f?.syncing) return "syncing";
-  if ($s && ($s.error === "remote-newer" || $s.error === "remote-exists")) return "conflict";
+  if (conflictOf($s)) return "conflict";
   if ($f?.conflicts) return "conflict";
   return "idle";
 });

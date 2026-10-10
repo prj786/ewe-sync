@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import * as api from "../api";
-  import { cloud, sync, busy, toast, fmtTime } from "../stores";
+  import { cloud, sync, busy, toast, fmtTime, conflictOf } from "../stores";
   import Toggle from "./ui/Toggle.svelte";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
@@ -21,8 +21,16 @@
     } catch {}
   });
 
-  const conflict = $derived($sync && ($sync.error === "remote-newer" || $sync.error === "remote-exists"));
+  const conflictKind = $derived(conflictOf($sync));
+  const conflict = $derived(!!conflictKind);
   const neverSynced = $derived($sync && !$sync.local_synced_at);
+  // true/false from the machine id in the backup's stamp; null when the stamp
+  // is older than machine ids and only a hostname (which two machines may
+  // share) says who saved it
+  const mine = $derived($sync?.remote_is_this_machine);
+  const savedBy = $derived(
+    mine === true ? `this computer (${$sync?.remote_machine || me.name || "?"})` : $sync?.remote_machine || "?"
+  );
 
   async function backUp(force = false) {
     if ($busy) return;
@@ -105,9 +113,15 @@
     </Group>
   {:else}
     {#if conflict}
-      <Alert tone="warning" title={$sync.error === "remote-exists" ? "A backup already exists" : "Newer settings in your account"}>
-        {#if $sync.error === "remote-exists"}
+      <Alert tone="warning" title={conflictKind === "remote-exists" ? "A backup already exists" : "Newer settings in your account"}>
+        {#if conflictKind === "remote-exists"}
           Your account has a backup and this machine never synced. Restore it first, or push anyway to replace it.
+        {:else if mine === true}
+          The copy in your account was saved by this computer, but it isn’t the one this computer last synced. Push
+          anyway to replace it with this computer’s settings, or restore it.
+        {:else if mine === null && $sync.remote_machine && $sync.remote_machine === me.name}
+          The copy in your account was saved by “{$sync.remote_machine}” — this computer’s name, but another machine
+          may share it. Restore it to take those settings, or push anyway to replace them with this computer’s.
         {:else}
           {$sync.remote_machine || "Another machine"} saved newer settings. Restore them first, or push anyway to replace
           them.
@@ -126,7 +140,7 @@
     <Group title="Settings sync">
       <KV k="Backup in your account">
         {#if $sync.remote_machine || $sync.remote_modified}
-          Saved by {$sync.remote_machine || "?"} · {fmtTime($sync.remote_modified)}
+          Saved by {savedBy} · {fmtTime($sync.remote_modified)}
         {:else}
           None yet
         {/if}

@@ -87,9 +87,18 @@
       if (get(folders)?.pairs?.length) api.foldersRunAll().catch(() => {});
       const r = await api.push(false);
       if (r.ok) toast("Settings backed up", "success");
-      else if (r.error === "remote-newer") toast("Another machine saved newer settings. Restore them first, or push anyway from This machine.", "danger");
-      else if (r.error === "remote-exists") toast("A backup already exists. Restore it first, or push anyway from This machine.", "danger");
-      else toast(r.message || r.error || "Couldn’t sync. Try again.", "danger");
+      else if (r.error === "remote-newer" || r.error === "remote-exists") {
+        // the decision (Restore… / Push anyway) lives on This machine
+        route.set("machine");
+        toast(
+          r.error === "remote-exists"
+            ? "A backup already exists. Restore it, or push anyway."
+            : r.remote_is_this_machine
+              ? "The copy in your account isn’t the one this computer last synced. Restore it, or push anyway."
+              : "Another machine saved newer settings. Restore them, or push anyway.",
+          "warning"
+        );
+      } else toast(r.message || r.error || "Couldn’t sync. Try again.", "danger");
     } catch (e) {
       toast(String(e), "error");
     } finally {
