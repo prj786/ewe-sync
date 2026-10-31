@@ -38,6 +38,33 @@ jobs:
           npm ci
           npm run build
 
+      # `tauri build` (the release, makepkg) refuses npm packages and Rust
+      # crates on different major.minor — this job never runs it, so a
+      # floating `^` on @tauri-apps/* once passed here and failed the
+      # v0.15.0-beta package build (2026-10-31). Same rule, checked early.
+      - name: Tauri npm and Rust versions agree
+        run: |
+          python3 - <<'PY'
+          import json, re
+          npm = json.load(open("package-lock.json"))["packages"]
+          cargo = open("src-tauri/Cargo.lock").read()
+          def crate(name):
+              m = re.search(r'name = "%s"\nversion = "([^"]+)"' % re.escape(name), cargo)
+              return m.group(1) if m else None
+          pairs = {"api": "tauri"}
+          for k in npm:
+              if k.startswith("node_modules/@tauri-apps/plugin-"):
+                  pairs[k.rsplit("/", 1)[1]] = "tauri-" + k.rsplit("/", 1)[1]
+          bad = []
+          for js, rs in pairs.items():
+              jv = npm.get("node_modules/@tauri-apps/" + js, {}).get("version")
+              rv = crate(rs)
+              print(f"@tauri-apps/{js} {jv}  ·  {rs} {rv}")
+              if jv and rv and jv.split(".")[:2] != rv.split(".")[:2]:
+                  bad.append(f"@tauri-apps/{js} {jv} vs {rs} {rv}")
+          assert not bad, "major.minor differ (tauri build refuses this): " + "; ".join(bad)
+          PY
+
       - name: Rust
         working-directory: src-tauri
         run: |
