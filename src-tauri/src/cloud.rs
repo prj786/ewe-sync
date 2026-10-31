@@ -308,7 +308,7 @@ fn client() -> reqwest::Client {
         .expect("reqwest client")
 }
 
-async fn write_machine_record() -> Result<(), String> {
+pub async fn write_machine_record() -> Result<(), String> {
     let d = dav().await?;
     let c = client();
     // MKCOL: 201 created, 405 exists — both fine

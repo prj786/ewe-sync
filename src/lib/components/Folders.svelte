@@ -1,7 +1,14 @@
 <script>
+  // Folders — every folder connected to the account, on this computer: the
+  // ones ewe-sync keeps in step, the ones the Nextcloud app still syncs (with
+  // a way to move them here), and the whole account as ~/Nextcloud. Adding
+  // one is a click for the usual folders (Suggested), Choose… for any other,
+  // or "Keep in your account…" in the file manager (`ewe-sync --add-folder`).
+  // The list lives in ewe.conf, so every computer you sign in to gets it;
+  // pausing, and a different local path, are this computer's own.
   import { onMount } from "svelte";
   import * as api from "../api";
-  import { cloud, folders, busy, toast, fmtTime } from "../stores";
+  import { cloud, folders, busy, toast, fmtTime, fmtBytes, pendingAdd, tildePath } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
   import Row from "./ui/Row.svelte";
@@ -9,77 +16,90 @@
   import Empty from "./ui/Empty.svelte";
   import IconBtn from "./ui/IconBtn.svelte";
   import Icon from "./ui/Icon.svelte";
+  import FolderForm from "./FolderForm.svelte";
 
-  // the list comes from the runner: pairs (from ewe.conf) + this machine's state
-  let editing = $state(null); // null | { index: -1 (new) | n, pair: {...}, excludeText }
+  let editing = $state(null); // null | { index: -1 (new) | n, pair }
+  let formError = $state("");
   let openConflicts = $state({}); // key → bool
-  let error = $state("");
-
-  const MODES = [
-    ["two-way", "Two-way: the Nextcloud sync engine"],
-    ["upload", "Upload only: copy local files to the account"],
-    ["download", "Download only: copy the account’s files here"]
-  ];
-  const TRIGGERS = [
-    ["change", "When something changes"],
-    ["interval", "Every N minutes"],
-    ["login", "Once at login"]
-  ];
+  let suggestions = $state([]);
+  let confirmRemove = $state(null); // an item of the list
+  let confirmTakeover = $state(false);
 
   async function load() {
     try {
       folders.set(await api.foldersList());
-    } catch (e) {
-      error = String(e);
+    } catch {
+      /* outside the desktop */
     }
+    api.foldersSuggest().then((r) => (suggestions = r.items || [])).catch(() => (suggestions = []));
   }
   onMount(load);
 
   const items = $derived($folders?.pairs || []);
+  const appFolders = $derived($folders?.app?.folders || []);
   const engines = $derived($folders?.engines || {});
+  const af = $derived($folders?.account_folder || null);
 
-  function blank(remote = "/", local = "~/Nextcloud") {
-    return { remote, local, mode: "two-way", trigger: "change", interval: 10, exclude: [] };
-  }
-  function startAdd(remote, local) {
-    editing = { index: -1, pair: blank(remote, local), excludeText: "" };
-    error = "";
+  // `ewe-sync --add-folder <path>` (the file manager): the form, pre-filled
+  $effect(() => {
+    const p = $pendingAdd;
+    if (!p) return;
+    pendingAdd.set("");
+    const local = tildePath(p);
+    const name = local.replace(/\/+$/, "").split("/").pop() || "";
+    const existing = items.findIndex((it) => it.local_effective === p);
+    if (existing >= 0) {
+      toast(`**${name}** is already in your account`, "info");
+      return;
+    }
+    editing = { index: -1, pair: { local, remote: name, mode: "two-way", trigger: "change", interval: 10, exclude: [] } };
+    formError = "";
+  });
+
+  function startAdd() {
+    editing = { index: -1, pair: null };
+    formError = "";
   }
   function startEdit(i) {
-    const p = { ...items[i].pair };
-    editing = { index: i, pair: p, excludeText: (p.exclude || []).join("\n") };
-    error = "";
-  }
-  function cancel() {
-    editing = null;
-    error = "";
+    editing = { index: i, pair: { ...items[i].pair } };
+    formError = "";
   }
 
-  async function savePairs(pairs) {
-    if ($busy) return;
+  async function savePairs(pairs, done) {
+    if ($busy) return false;
     busy.set("folders");
     try {
       folders.set(await api.foldersSet(pairs));
-      editing = null;
-      error = "";
+      formError = "";
+      if (done) toast(done, "success");
+      api.foldersSuggest().then((r) => (suggestions = r.items || [])).catch(() => {});
+      return true;
     } catch (e) {
-      error = String(e);
+      formError = String(e);
+      if (!editing) toast(String(e), "error", 8000);
+      return false;
     } finally {
       busy.set("");
     }
   }
-  function save() {
-    const p = { ...editing.pair, interval: Number(editing.pair.interval) || 10 };
-    p.exclude = editing.excludeText.split("\n").map((s) => s.trim()).filter(Boolean);
+  async function save(pair) {
     const pairs = items.map((x) => x.pair);
-    if (editing.index < 0) pairs.push(p);
-    else pairs[editing.index] = p;
-    savePairs(pairs);
+    const isNew = editing.index < 0;
+    if (isNew) pairs.push(pair);
+    else pairs[editing.index] = pair;
+    const name = String(pair.local).replace(/\/+$/, "").split("/").pop();
+    if (await savePairs(pairs, isNew ? `**${name}** now syncs with your account` : "Saved")) editing = null;
   }
-  function remove(i) {
+  function quickAdd(s) {
     const pairs = items.map((x) => x.pair);
-    pairs.splice(i, 1);
-    savePairs(pairs);
+    pairs.push({ remote: s.remote, local: s.local, mode: "two-way", trigger: "change", interval: 10, exclude: s.exclude || [] });
+    savePairs(pairs, `**${s.name}** now syncs with your account`);
+  }
+  async function remove() {
+    const it = confirmRemove;
+    confirmRemove = null;
+    if (!it) return;
+    await savePairs(items.filter((x) => x.key !== it.key).map((x) => x.pair), `**${it.name}** stopped syncing. Its files stay where they are.`);
   }
 
   async function runOne(key) {
@@ -89,118 +109,144 @@
     } catch (e) {
       toast(String(e), "error", 8000);
     }
-    load();
+  }
+  async function pause(it) {
+    try {
+      folders.set(await api.foldersPause(it.key, !it.paused));
+      toast(it.paused ? `**${it.name}** syncs again` : `**${it.name}** is paused on this computer`, "info");
+    } catch (e) {
+      toast(String(e), "error");
+    }
   }
   async function resolve(key, path, keep) {
     try {
       folders.set(await api.foldersResolve(key, path, keep));
-      toast(keep === "mine" ? "Kept your copy. It uploads on the next run." : "Kept the account’s copy", "success");
+      toast(keep === "mine" ? "Kept your copy. It goes up on the next sync." : "Kept the account’s copy", "success");
     } catch (e) {
       toast(String(e), "error", 8000);
     }
   }
+  async function takeover() {
+    confirmTakeover = false;
+    if ($busy) return;
+    busy.set("takeover");
+    try {
+      folders.set(await api.foldersTakeover());
+      toast("ewe-sync keeps these folders in step now. The Nextcloud app is closed and won’t start at login.", "success", 9000);
+    } catch (e) {
+      toast(String(e), "error", 9000);
+    } finally {
+      busy.set("");
+    }
+  }
+  function open(path) {
+    api.folderOpen(path).catch((e) => toast(String(e), "error"));
+  }
 
-  function statusText(it) {
-    if (it.running) return "Syncing…";
-    if (it.conflicts?.length) return `${it.conflicts.length} conflict${it.conflicts.length === 1 ? "" : "s"}`;
-    if (it.last_error) return "Failed";
-    if (it.last_run) return "Up to date";
-    return "Never run";
-  }
-  function statusTone(it) {
-    if (it.running) return "ewe-badge--accent";
-    if (it.conflicts?.length) return "ewe-badge--warning";
-    if (it.last_error) return "ewe-badge--danger";
-    if (it.last_run) return "ewe-badge--success";
-    return "";
-  }
-  const MODE_WORD = { "two-way": "Two-way", upload: "Upload only", download: "Download only" };
-  const MODE_ICON = { "two-way": "arrowBoth", upload: "arrowUp", download: "arrowDown" };
-  function triggerText(p) {
-    if (p.trigger === "interval") return `every ${p.interval} min`;
-    if (p.trigger === "login") return "at login";
-    return "on change";
+  const STATE = {
+    synced: ["Up to date", "ewe-badge--success"],
+    syncing: ["Syncing…", "ewe-badge--accent"],
+    pending: ["Waiting", ""],
+    paused: ["Paused", ""],
+    offline: ["Offline", ""],
+    error: ["Couldn’t sync", "ewe-badge--danger"],
+    conflict: ["Needs a decision", "ewe-badge--warning"]
+  };
+  const MODE_WORD = { "two-way": "", upload: " · upload only", download: " · download only" };
+  function subline(it) {
+    const r = String(it.pair.remote || "").replace(/^\/+|\/+$/g, "");
+    const where = r ? `${r} in your account` : "your whole account";
+    const when = it.state === "paused" && !it.paused ? " · auto-sync is off" : it.last_ok && it.last_run ? ` · ${fmtTime(it.last_run)}` : "";
+    return `${tildePath(it.local_effective)} ↔ ${where}${MODE_WORD[it.pair.mode] || ""}${when}`;
   }
 </script>
 
 {#snippet addAction()}
-  <button class="ewe-btn ewe-btn--secondary" disabled={!!$busy} onclick={() => startAdd("", "")}>
-    <Icon name="plus" />Add folder
+  <button class="ewe-btn ewe-btn--primary" disabled={!!$busy || !!editing} onclick={startAdd}>
+    <Icon name="folderPlus" />Add folder
   </button>
 {/snippet}
 
 <Page
   title="Folders"
-  desc="Folders on this machine kept in step with your account."
-  actions={$cloud?.signed_in && items.length && !editing ? addAction : undefined}
+  desc="Folders on this computer kept in your account. Every computer you sign in to gets the same folders."
+  actions={$cloud?.signed_in ? addAction : undefined}
 >
   {#if !$cloud?.signed_in}
     <Group title="Folders">
       <Empty compact icon="folder" title="Not signed in" desc="Sign in first: folders sync with your account." />
     </Group>
   {:else}
-    {#if error}
-      <Alert tone="danger" title="Couldn’t save the folders" dismiss={() => (error = "")}>{error}</Alert>
+    {#if appFolders.length}
+      <Alert tone="info" title={`The Nextcloud app syncs ${appFolders.length === 1 ? "a folder" : `${appFolders.length} folders`} here`}>
+        Two sync apps on one folder get in each other’s way. ewe-sync can take {appFolders.length === 1 ? "it" : "them"} over:
+        the same folders, nothing moves, one place to see them. The Nextcloud app closes and stops starting at login.
+        {#snippet actions()}
+          <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" disabled={!!$busy} onclick={() => (confirmTakeover = true)}>
+            {$busy === "takeover" ? "Taking over…" : "Let ewe-sync take over"}
+          </button>
+        {/snippet}
+      </Alert>
     {/if}
 
-    {#if !items.length && !editing}
-      <Group title="Get started" well={false}>
-        <div class="ewe-card">
-          <div class="ewe-card__head">
-            <span class="ewe-card__icon ewe-card__icon--accent"><Icon name="folderSync" /></span>
-            <div class="ewe-card__titles">
-              <div class="ewe-card__title">Sync ~/Nextcloud with your account</div>
-              <div class="ewe-card__desc">
-                Two-way, whenever something changes: the whole account in one folder on this machine. Set it up, or
-                add any folder pair you like.
-              </div>
-            </div>
-          </div>
-          <div class="ewe-card__foot">
-            <button class="ewe-btn ewe-btn--ghost" onclick={() => startAdd("", "")}>Add another folder</button>
-            <button class="ewe-btn ewe-btn--primary" onclick={() => startAdd("/", "~/Nextcloud")}>Set up</button>
-          </div>
+    {#if editing}
+      <Group title={editing.index < 0 ? "Add a folder" : `Change ${items[editing.index]?.name || "folder"}`} well={false}>
+        <FolderForm
+          initial={editing.pair}
+          isNew={editing.index < 0}
+          {engines}
+          busy={!!$busy}
+          error={formError}
+          onSave={save}
+          onCancel={() => ((editing = null), (formError = ""))}
+        />
+      </Group>
+    {:else if suggestions.length}
+      <Group title="Suggested" desc="One click keeps a folder in your account, right where it is." well={false}>
+        <div class="suggest">
+          {#each suggestions as s (s.local)}
+            <button class="ewe-card ewe-card--interactive suggest__item" disabled={!!$busy} onclick={() => quickAdd(s)}>
+              <span class="ewe-card__icon"><Icon name="folder" /></span>
+              <span class="suggest__text">
+                <span class="suggest__name">{s.name}</span>
+                <span class="suggest__desc">{s.in_account ? `In your account · ${fmtBytes(s.remote_size || 0)}` : s.local}</span>
+              </span>
+              <Icon name="plus" />
+            </button>
+          {/each}
         </div>
       </Group>
     {/if}
 
-    {#if items.length}
-      <Group title={`Folders · ${items.length}`}>
+    {#if items.length || appFolders.length}
+      <Group title={`Connected · ${items.length + appFolders.length}`}>
         {#each items as it, i (it.key)}
           {#if i > 0}<div class="ewe-list__divider"></div>{/if}
-          <Row
-            class="folder-row"
-            sub={`${it.pair.remote || "/"} · ${MODE_WORD[it.pair.mode] || it.pair.mode} · ${triggerText(it.pair)}${it.last_run ? ` · last run ${fmtTime(it.last_run)}` : ""}`}
-          >
+          <Row class="folder-row" title={it.name} sub={subline(it)}>
             {#snippet lead()}
-              <span class="ewe-row__lead ewe-row__lead--tile"><Icon name={MODE_ICON[it.pair.mode] || "folder"} /></span>
+              <span class="ewe-row__lead ewe-row__lead--tile"><Icon name={it.pair.mode === "upload" ? "cloudUpload" : it.pair.mode === "download" ? "cloudDownload" : "folder"} /></span>
             {/snippet}
-            {#snippet text()}
-              <div class="ewe-row__title ewe-mono folder-path" title={it.local_effective}>{it.local_effective}</div>
-            {/snippet}
-            <span class="ewe-badge {statusTone(it)}"><span class="ewe-badge__label">{statusText(it)}</span></span>
+            <span class="ewe-badge {STATE[it.state]?.[1] || ''}"><span class="ewe-badge__label">{STATE[it.state]?.[0] || it.state}</span></span>
             <span class="iconbtn-row">
-              <IconBtn name="refresh" title="Sync now" disabled={it.running || !!$busy} go={() => runOne(it.key)} />
-              <IconBtn name="pencil" title="Edit" disabled={!!$busy} go={() => startEdit(i)} />
-              <IconBtn name="trash" title="Remove" danger disabled={!!$busy} go={() => remove(i)} />
+              <IconBtn name="folderOpen" title="Open" go={() => open(it.local_effective)} />
+              <IconBtn name="refresh" title="Sync now" disabled={it.running || it.paused || !!$busy} go={() => runOne(it.key)} />
+              <IconBtn name={it.paused ? "play" : "pause"} title={it.paused ? "Resume on this computer" : "Pause on this computer"} disabled={!!$busy} go={() => pause(it)} />
+              <IconBtn name="pencil" title="Change" disabled={!!$busy || !!editing} go={() => startEdit(i)} />
+              <IconBtn name="trash" title="Stop syncing" danger disabled={!!$busy} go={() => (confirmRemove = it)} />
             </span>
           </Row>
-          {#if it.last_error}
+          {#if it.last_error && it.state !== "paused"}
             <div class="ewe-row ewe-row--block"><pre class="error-log">{it.last_error}</pre></div>
           {/if}
           {#if it.conflicts?.length}
-            <Row
-              dense
-              title="Both sides changed the same file"
-              sub="Keep yours (it replaces the account’s copy on the next run) or keep the account’s."
-            >
+            <Row dense title="Changed in two places" sub="Both copies are kept. Keep yours (it replaces the account’s on the next sync) or the account’s.">
               <button
                 class="ewe-btn ewe-btn--sm ewe-btn--ghost"
                 aria-expanded={!!openConflicts[it.key]}
                 onclick={() => (openConflicts[it.key] = !openConflicts[it.key])}
               >
                 {openConflicts[it.key] ? "Hide" : "Show"}
-                {it.conflicts.length} conflict{it.conflicts.length === 1 ? "" : "s"}
+                {it.conflicts.length} file{it.conflicts.length === 1 ? "" : "s"}
               </button>
             </Row>
             {#if openConflicts[it.key]}
@@ -216,71 +262,108 @@
             {/if}
           {/if}
         {/each}
+        {#each appFolders as f, j (f.local)}
+          {#if items.length || j > 0}<div class="ewe-list__divider"></div>{/if}
+          <Row title={f.name} sub={`${tildePath(f.local)} ↔ ${f.remote ? `${f.remote} in your account` : "your whole account"} · the Nextcloud app`}>
+            {#snippet lead()}
+              <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="folder" /></span>
+            {/snippet}
+            <span class="ewe-badge"><span class="ewe-badge__label">{f.paused ? "Paused" : $folders?.app?.running ? "Nextcloud app" : "App not running"}</span></span>
+            <span class="iconbtn-row">
+              <IconBtn name="folderOpen" title="Open" go={() => open(f.local)} />
+            </span>
+          </Row>
+        {/each}
+      </Group>
+    {:else if !editing}
+      <Group title="Connected">
+        <Empty
+          compact
+          icon="folderSync"
+          title="No folders yet"
+          desc="Pick a suggested folder above, or add any folder. It stays where it is on this computer."
+        />
       </Group>
     {/if}
 
-    {#if editing}
-      <Group title={editing.index < 0 ? "Add folder" : "Edit folder"} well={false}>
-        <div class="ewe-card">
-          <label class="ewe-field">
-            <span class="ewe-field__label">Local folder on this machine</span>
-            <input class="ewe-input ewe-mono" placeholder="~/Documents" bind:value={editing.pair.local} />
-          </label>
-          <label class="ewe-field">
-            <span class="ewe-field__label">Folder in your account</span>
-            <input class="ewe-input ewe-mono" placeholder="/ (everything) or /Documents" bind:value={editing.pair.remote} />
-          </label>
-          <label class="ewe-field">
-            <span class="ewe-field__label">Mode</span>
-            <select class="ewe-input" bind:value={editing.pair.mode}>
-              {#each MODES as [v, l]}<option value={v}>{l}</option>{/each}
-            </select>
-          </label>
-          <div class="form-grid">
-            <label class="ewe-field form-grid__wide">
-              <span class="ewe-field__label">Run</span>
-              <select class="ewe-input" bind:value={editing.pair.trigger}>
-                {#each TRIGGERS as [v, l]}<option value={v}>{l}</option>{/each}
-              </select>
-            </label>
-            <label class="ewe-field">
-              <span class="ewe-field__label">Minutes</span>
-              <input
-                class="ewe-input mono-input"
-                type="number"
-                min="1"
-                max="1440"
-                disabled={editing.pair.trigger !== "interval"}
-                bind:value={editing.pair.interval}
-              />
-            </label>
-          </div>
-          <label class="ewe-field">
-            <span class="ewe-field__label">Exclude <span class="ewe-field__optional">optional</span></span>
-            <textarea
-              class="ewe-input ewe-input--multiline ewe-mono"
-              rows="3"
-              placeholder={".git\nnode_modules"}
-              bind:value={editing.excludeText}
-            ></textarea>
-            <span class="ewe-field__helper">One pattern per line.</span>
-          </label>
-          {#if editing.pair.mode === "two-way" && engines.nextcloudcmd === false}
-            <Alert tone="warning" title="nextcloudcmd isn’t installed">Two-way sync needs the nextcloud-client package.</Alert>
-          {:else if editing.pair.mode !== "two-way" && engines.rclone === false}
-            <Alert tone="warning" title="rclone isn’t installed">One-way folders need it.</Alert>
+    {#if af}
+      <Group title="Your whole account">
+        <Row icon="cloud" title="Everything in your account" sub={af.state === "mounted"
+          ? `${tildePath(af.path)} · opens your whole account as a folder; files download when you open them`
+          : af.state === "synced"
+            ? `${tildePath(af.path)} · synced to this computer`
+            : "Not opened as a folder on this computer"}>
+          {#if af.state !== "off"}
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => open(af.path)}>Open</button>
           {/if}
-          <div class="ewe-card__foot">
-            <button class="ewe-btn ewe-btn--ghost" onclick={cancel}>Cancel</button>
-            <button class="ewe-btn ewe-btn--primary" disabled={!!$busy} onclick={save}>Save</button>
-          </div>
-        </div>
+        </Row>
       </Group>
     {/if}
 
     <p class="note">
-      Two-way folders run the Nextcloud sync engine (nextcloudcmd); one-way folders copy with rclone and never delete.
-      Folder definitions live in ewe.conf and follow you to every machine; the local path can differ per machine.
+      Both ways uses the Nextcloud sync engine; upload only and download only never delete anything. Files that changed
+      in two places keep both copies until you choose.
     </p>
   {/if}
 </Page>
+
+{#if confirmRemove}
+  <div class="scrim"></div>
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="ewe-dialog is-floating"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="rm-title"
+    aria-describedby="rm-desc"
+    tabindex="-1"
+    onkeydown={(e) => e.key === "Escape" && (confirmRemove = null)}
+  >
+    <div class="ewe-dialog__head">
+      <span class="ewe-dialog__icon ewe-dialog__icon--danger"><Icon name="trash" /></span>
+      <div class="ewe-dialog__titles">
+        <h2 class="ewe-dialog__title" id="rm-title">Stop syncing {confirmRemove.name}?</h2>
+        <p class="ewe-dialog__desc" id="rm-desc">
+          Nothing is deleted: the files stay on this computer and in your account. Your other computers stop syncing it
+          too.
+        </p>
+      </div>
+    </div>
+    <div class="ewe-dialog__foot">
+      <!-- svelte-ignore a11y_autofocus -->
+      <button class="ewe-btn ewe-btn--ghost" autofocus onclick={() => (confirmRemove = null)}>Cancel</button>
+      <button class="ewe-btn ewe-btn--danger" onclick={remove}>Stop syncing</button>
+    </div>
+  </div>
+{/if}
+
+{#if confirmTakeover}
+  <div class="scrim"></div>
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="ewe-dialog is-floating"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="to-title"
+    aria-describedby="to-desc"
+    tabindex="-1"
+    onkeydown={(e) => e.key === "Escape" && (confirmTakeover = false)}
+  >
+    <div class="ewe-dialog__head">
+      <span class="ewe-dialog__icon ewe-dialog__icon--accent"><Icon name="folderSync" /></span>
+      <div class="ewe-dialog__titles">
+        <h2 class="ewe-dialog__title" id="to-title">Let ewe-sync take over?</h2>
+        <p class="ewe-dialog__desc" id="to-desc">
+          The Nextcloud app closes and no longer starts at login. {appFolders.map((f) => tildePath(f.local)).join(", ")}
+          {appFolders.length === 1 ? "keeps" : "keep"} syncing through ewe-sync. Your files stay where they are; the first
+          sync only compares them.
+        </p>
+      </div>
+    </div>
+    <div class="ewe-dialog__foot">
+      <!-- svelte-ignore a11y_autofocus -->
+      <button class="ewe-btn ewe-btn--ghost" autofocus onclick={() => (confirmTakeover = false)}>Cancel</button>
+      <button class="ewe-btn ewe-btn--primary" onclick={takeover}>Take over</button>
+    </div>
+  </div>
+{/if}

@@ -87,11 +87,11 @@
 {/snippet}
 
 <Page
-  title="This machine"
-  desc="Settings sync: ewe.conf, the one file, backed up to your account and brought back on any machine."
+  title="Settings & apps"
+  desc="Your desktop as one file (ewe.conf): look, bar, displays, keyboard and the apps you use, kept in your account."
   actions={$cloud?.signed_in && $sync ? syncAction : undefined}
 >
-  <Group title="This machine">
+  <Group title="This computer">
     <KV k="Name" v={me.name || "—"} />
     <KV k="ewe" v={me.ewe_version || "—"} mono />
   </Group>

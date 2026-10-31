@@ -34,5 +34,17 @@ export const ICONS = {
   globe: 0xE0E8,
   monitor: 0xE11D,
   machines: 0xE3A2, // monitor-smartphone
-  folderSync: 0xE4C9
+  folderSync: 0xE4C9,
+  // the ecosystem pass (0.15): Overview, Folders, the pickers
+  pause: 0xE12E,
+  play: 0xE13C,
+  lock: 0xE10B,
+  settings: 0xE154,
+  folderOpen: 0xE247,
+  folderPlus: 0xE0D9,
+  cloudCheck: 0xE66E,
+  cloudDownload: 0xE089,
+  cloudUpload: 0xE091,
+  chevronLeft: 0xE06E,
+  sparkles: 0xE412
 };
