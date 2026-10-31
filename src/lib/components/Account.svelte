@@ -1,7 +1,7 @@
 <script>
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as api from "../api";
-  import { cloud, busy, loginUrl, toast, fmtBytes } from "../stores";
+  import { cloud, busy, loginUrl, toast, fmtBytes, route } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
   import Row from "./ui/Row.svelte";
@@ -50,8 +50,12 @@
           const a = await api.cloudAvatar();
           if (a?.ok && a.path) avatar = api.fileSrc(a.path) + (String(a.path).startsWith("data:") ? "" : "?t=" + Date.now());
         } catch {}
-        await api.machinesWrite().catch(() => {});
-        await api.shellPoke("refresh").catch(() => {});
+        // the same next steps as the shell's sign-in: the one file learns
+        // its account, auto-sync is on, ~/Nextcloud appears; then Overview
+        // offers to bring everything back (or to choose the folders to keep)
+        await api.afterSignIn().catch(() => {});
+        await refresh();
+        route.set("overview");
       } else {
         error = r.message || r.error || "Couldn’t sign in. Check the address and try again.";
       }
@@ -68,9 +72,9 @@
     busy.set("logout");
     try {
       await api.cloudLogout();
+      await api.afterSignOut().catch(() => {});
       avatar = "";
-      toast("Signed out", "info");
-      await api.shellPoke("refresh").catch(() => {});
+      toast("Signed out. Your files stay on this computer.", "info");
     } catch (e) {
       toast(String(e), "error");
     } finally {

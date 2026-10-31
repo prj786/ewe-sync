@@ -5,8 +5,12 @@
   // in a plain browser (devmock) there is no event bus — subscribe to nothing
   const listen = (ev, cb) => (window.__EWE_SYNC_MOCK__ ? Promise.resolve(() => {}) : tauriListen(ev, cb));
   import * as api from "./lib/api";
-  import { route, cloud, sync, busy, loginUrl, folders, trayState, toast, mail, google, gclient, consentUrl } from "./lib/stores";
+  import {
+    route, cloud, sync, busy, loginUrl, folders, trayState, toast, mail, google, gclient, consentUrl,
+    browser, safe, pendingAdd
+  } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
+  import Overview from "./lib/components/Overview.svelte";
   import Account from "./lib/components/Account.svelte";
   import Mail from "./lib/components/Mail.svelte";
   import Google from "./lib/components/Google.svelte";
@@ -25,14 +29,17 @@
     return JSON.stringify(p?.raw ?? p ?? null);
   };
 
-  // the sections (Side navigation); Ctrl+1 … Ctrl+6 jump to them
+  // the sections (Side navigation); Ctrl+1 … Ctrl+7 jump to them. What the
+  // account keeps comes first (Overview, Folders, Settings & apps, Machines);
+  // the account itself and the other accounts after.
   const NAV = [
+    { id: "overview", label: "Overview", icon: "cloud" },
+    { id: "folders", label: "Folders", icon: "folderSync" },
+    { id: "machine", label: "Settings & apps", icon: "settings" },
+    { id: "machines", label: "Machines", icon: "machines" },
     { id: "account", label: "Account", icon: "user" },
     { id: "mail", label: "Mail", icon: "mail" },
-    { id: "google", label: "Google", icon: "globe" },
-    { id: "machine", label: "This machine", icon: "monitor" },
-    { id: "machines", label: "Machines", icon: "machines" },
-    { id: "folders", label: "Folders", icon: "folderSync" }
+    { id: "google", label: "Google", icon: "globe" }
   ];
   function globalKey(e) {
     if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) {
@@ -57,6 +64,9 @@
       } catch (e) {
         sync.set({ ok: false, error: String(e) });
       }
+      // what else the account carries: the browser and Safe report their own
+      api.browserStatus().then((b) => browser.set(b)).catch(() => browser.set(null));
+      api.safeStatus().then((s) => safe.set(s)).catch(() => safe.set(null));
     } else {
       sync.set(null);
     }
@@ -79,14 +89,14 @@
     }
   }
 
+  // Sync now means everything: settings & apps (pull, merge, push), every
+  // folder, the browser and Safe (overview.rs sync_everything)
   async function syncNow() {
     if (get(busy)) return;
     busy.set("sync");
     try {
-      // the folders too, when there are any — the tray's Sync now means everything
-      if (get(folders)?.pairs?.length) api.foldersRunAll().catch(() => {});
-      const r = await api.push(false);
-      if (r.ok) toast("Settings backed up", "success");
+      const r = await api.syncEverything();
+      if (r.ok) toast(r.changed?.length ? "Synced. Changes from your other computers are here." : "Everything is up to date", "success");
       else if (r.error === "remote-newer" || r.error === "remote-exists") {
         // the decision (Restore… / Push anyway) lives on This machine
         route.set("machine");
@@ -119,12 +129,19 @@
     refresh();
   }
 
-  const ROUTES = ["account", "mail", "google", "machine", "machines", "folders"];
+  const ROUTES = ["overview", "account", "mail", "google", "machine", "machines", "folders"];
+
+  // `ewe-sync --pane <id>` / `--add-folder <path>` (the shell, Settings, the
+  // file manager's "Keep in your account…")
+  function openLink(l) {
+    if (!l) return;
+    if (l.add_folder) pendingAdd.set(String(l.add_folder));
+    if (l.pane && ROUTES.includes(l.pane)) route.set(l.pane);
+  }
   onMount(() => {
     const unlisteners = [];
-    // #account / #mail / #google / #machine / #machines / #folders open a pane
-    // directly (deep
-    // links from the shell and Settings; harmless inside Tauri)
+    // #overview / #account / #mail / #google / #machine / #machines / #folders
+    // open a pane directly (the dev mock; inside Tauri the --pane flag)
     const h = location.hash.replace(/^#/, "");
     if (ROUTES.includes(h)) route.set(h);
     unlisteners.push(route.subscribe((r) => {
@@ -139,6 +156,8 @@
       window.addEventListener("focus", refresh);
       unlisteners.push(() => window.removeEventListener("focus", refresh));
 
+      unlisteners.push(await listen("deep-link", (e) => openLink(e.payload)));
+      api.takeDeepLink().then(openLink).catch(() => {});
       unlisteners.push(await listen("login-url", (e) => loginUrl.set(String(e.payload || ""))));
       unlisteners.push(await listen("google-consent-url", (e) => consentUrl.set(String(e.payload || ""))));
       // the folder runner reports every change of state (a run, a conflict)
@@ -177,7 +196,9 @@
   <!-- the pane: the main landmark, inset from the window's edges (App shell) -->
   <main class="ewe-appwin__pane">
     <div class="ewe-appwin__scroll">
-      {#if $route === "account"}
+      {#if $route === "overview"}
+        <Overview {refresh} {syncNow} />
+      {:else if $route === "account"}
         <Account {refresh} />
       {:else if $route === "mail"}
         <Mail {refresh} />

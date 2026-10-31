@@ -16,6 +16,80 @@ pub fn home() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/"))
 }
 
+pub fn config_home() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"))
+}
+
+/// `~/.local/state/ewe` — ewe's per-machine state (never synced).
+pub fn state_dir() -> PathBuf {
+    std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".local/state"))
+        .join("ewe")
+}
+
+/// Write a file the way every ewe tool does: a sibling tmp, then rename.
+pub fn write_atomic(path: &std::path::Path, body: &[u8]) -> std::io::Result<()> {
+    if let Some(d) = path.parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, body)?;
+    std::fs::rename(&tmp, path)
+}
+
+/// The signed-in account as ewe-cloud recorded it (server, login) — the
+/// non-secret half in `~/.config/ewe/cloud.json`; never the app password.
+pub fn cloud_meta() -> Option<(String, String)> {
+    let text = std::fs::read_to_string(config_home().join("ewe/cloud.json")).ok()?;
+    let j: Value = serde_json::from_str(&text).ok()?;
+    let server = j["server"].as_str()?.trim_end_matches('/').to_string();
+    let user = j["login_name"]
+        .as_str()
+        .or_else(|| j["user"].as_str())?
+        .to_string();
+    if server.is_empty() || user.is_empty() {
+        return None;
+    }
+    Some((server, user))
+}
+
+/// Is `bin` on PATH?
+pub fn which(bin: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file()))
+        .unwrap_or(false)
+}
+
+/// `~` for the home folder, so a path written to ewe.conf means the same
+/// folder on every machine (`/home/a/Documents` → `~/Documents`).
+pub fn tilde(path: &std::path::Path) -> String {
+    let h = home();
+    match path.strip_prefix(&h) {
+        Ok(rest) if rest.as_os_str().is_empty() => "~".into(),
+        Ok(rest) => format!("~/{}", rest.display()),
+        Err(_) => path.display().to_string(),
+    }
+}
+
+/// Fire-and-forget a process, reaped off-thread (a child nobody waits for
+/// stays a zombie for the life of this app — 2026-09-20).
+pub fn spawn_reaped(bin: &str, args: &[&str]) {
+    let child = std::process::Command::new(bin)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    if let Ok(mut child) = child {
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
+}
+
 /// `$EWE_REPO/bin/<name>` (a developer checkout), the deployed payload
 /// (`~/.local/share/ewe/bin`), the symlink farm behind `~/.config/quickshell`,
 /// then `/usr/bin` (the packaged wrappers).
@@ -89,6 +163,33 @@ pub async fn run_tool(
     })
 }
 
+/// Run one of the shell-script tools (ewe-files) the same way: argv, found
+/// like the others, stdout's last JSON line parsed when there is one.
+pub async fn run_script(name: &str, args: &[&str]) -> Result<ToolOutput, String> {
+    let Some(path) = ewe_tool(name) else {
+        return Err(format!("{name} is not installed"));
+    };
+    let out = Command::new(&path)
+        .args(args)
+        .env("LANG", "C")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| format!("{name}: {e}"))?;
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    Ok(ToolOutput {
+        json: stdout
+            .lines()
+            .rev()
+            .find_map(|l| serde_json::from_str::<Value>(l).ok())
+            .unwrap_or(Value::Null),
+        stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+        code: out.status.code().unwrap_or(-1),
+    })
+}
+
 /// `ewe-conf get <key>` → the JSON value, or Null when the key is absent
 /// (exit 1 with a `{"error":"no-key"}` line on stderr).
 pub async fn conf_get(key: &str) -> Result<Value, String> {
@@ -99,9 +200,10 @@ pub async fn conf_get(key: &str) -> Result<Value, String> {
     Ok(o.json)
 }
 
-/// Keys the frontend may set: the sync switch and the folder definitions.
+/// Keys the frontend may set: the sync switch, the browser switch and the
+/// folder definitions.
 pub fn conf_key_allowed(key: &str) -> bool {
-    matches!(key, "sync.enabled" | "sync.folders")
+    matches!(key, "sync.enabled" | "sync.browser" | "sync.folders")
 }
 
 /// The DE's version as the deployed payload records it (the shell shows the

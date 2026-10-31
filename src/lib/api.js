@@ -51,6 +51,23 @@ export const foldersRun = (key) => invoke("folders_run", { key });
 export const foldersRunAll = () => invoke("folders_run_all");
 export const foldersLocalOverride = (key, local) => invoke("folders_local_override", { key, local });
 export const foldersResolve = (key, path, keep) => invoke("folders_resolve", { key, path, keep });
+export const foldersPause = (key, paused) => invoke("folders_pause", { key, paused });
+export const foldersTakeover = () => invoke("folders_takeover");
+export const foldersSuggest = () => invoke("folders_suggest");
+export const folderSize = (path) => invoke("folder_size", { path });
+export const folderOpen = (path) => invoke("folder_open", { path });
+export const remoteList = (path) => invoke("remote_list", { path });
+
+// everything the account carries (overview.rs)
+export const takeDeepLink = () => invoke("take_deep_link");
+export const browserStatus = () => invoke("browser_status");
+export const safeStatus = () => invoke("safe_status");
+export const openSafe = () => invoke("open_safe");
+export const syncEverything = () => invoke("sync_everything");
+export const restorePreview = () => invoke("restore_preview");
+export const restoreEverything = () => invoke("restore_everything");
+export const afterSignIn = () => invoke("after_sign_in");
+export const afterSignOut = () => invoke("after_sign_out");
 
 // tray
 export const trayState = (state, tooltip) => invoke("tray_state", { state, tooltip: tooltip || null });

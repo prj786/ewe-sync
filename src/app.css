@@ -606,4 +606,175 @@ code {
     width: var(--icon-md);
     height: var(--icon-md);
   }
+  /* ── the ecosystem pass (0.15): Overview, Folders, the pickers ─────────── */
+  /* the promise (signed out) and the welcome / first-computer cards */
+  .promise__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  .promise__list > li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-s);
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+    color: var(--text-secondary);
+  }
+  .promise__list > li > .ewe-icon {
+    flex: none;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    margin-top: calc((var(--line-height-s) - var(--icon-sm)) / 2);
+    color: var(--accent-text);
+  }
+  .promise__list b {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+  }
+  .welcome {
+    border-color: var(--accent-subtle);
+  }
+  .pick-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  /* the account row: free space as a small meter */
+  .quota-mini {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-xxs);
+    width: calc(4 * var(--control-md));
+  }
+  .quota-mini__track {
+    width: 100%;
+  }
+  .quota-mini__track.is-warning .ewe-meter__fill {
+    background: var(--warning);
+  }
+  .quota-mini__track.is-danger .ewe-meter__fill {
+    background: var(--danger);
+  }
+  .quota-mini__text {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-muted);
+  }
+  /* Suggested: the usual folders, one click each */
+  .suggest {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(5 * var(--control-md)), 1fr));
+    gap: var(--space-s);
+  }
+  .suggest__item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-s);
+    padding: var(--space-s) calc(var(--space-s) + var(--space-xs));
+    font: inherit;
+    text-align: left;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .suggest__item:disabled {
+    cursor: not-allowed;
+    color: var(--text-disabled);
+  }
+  .suggest__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .suggest__name {
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-md);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+  }
+  .suggest__desc {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the add / change form */
+  .folder-form {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-s) + var(--space-xs));
+  }
+  .more-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xxs);
+    align-self: flex-start;
+    color: var(--text-secondary);
+  }
+  .more-toggle .ewe-icon {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+  }
+  /* the account folder picker */
+  .picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+    padding: var(--space-s);
+    border: var(--border-width-1) solid var(--border-subtle);
+    border-radius: var(--primary);
+    background: var(--surface-raised);
+  }
+  .picker__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-s);
+  }
+  .picker__head .ewe-breadcrumb {
+    flex-wrap: wrap;
+  }
+  .picker__head button.ewe-breadcrumb__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xxs);
+    border: 0;
+    background: transparent;
+    font: inherit;
+  }
+  .picker__head button.ewe-breadcrumb__item:hover:not(.is-current) {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+  .picker__list {
+    max-height: calc(6 * var(--control-lg));
+    overflow-y: auto;
+  }
+  .picker__size {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+  }
+  .picker__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+  }
+  .picker__spacer {
+    flex: 1;
+  }
+  .picker__free {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+  }
 }
