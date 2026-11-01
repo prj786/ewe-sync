@@ -252,7 +252,10 @@ mod machine_id_tests {
     // hashlib.sha256(b"ewe:" + mid).hexdigest()[:16]
     #[test]
     fn same_id_as_ewe_remote() {
-        assert_eq!(super::id_from("0123456789abcdef0123456789abcdef"), "d019c617096def78");
+        assert_eq!(
+            super::id_from("0123456789abcdef0123456789abcdef"),
+            "d019c617096def78"
+        );
     }
 }
 

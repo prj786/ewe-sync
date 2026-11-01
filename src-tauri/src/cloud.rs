@@ -8,7 +8,9 @@ use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::tools::{conf_get, conf_key_allowed, ewe_tool, ewe_version, home, hostname, machine_id, run_tool};
+use crate::tools::{
+    conf_get, conf_key_allowed, ewe_tool, ewe_version, home, hostname, machine_id, run_tool,
+};
 
 fn estr<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
@@ -355,7 +357,11 @@ pub async fn write_machine_record() -> Result<(), String> {
         // the pre-id file of this computer's name: only ever ours or a
         // same-named twin's, and the twin writes its own id file now too
         let legacy = format!("{}{}.json", d.base, percent(&hostname()));
-        let _ = c.delete(&legacy).basic_auth(&d.user, Some(&d.token)).send().await;
+        let _ = c
+            .delete(&legacy)
+            .basic_auth(&d.user, Some(&d.token))
+            .send()
+            .await;
         Ok(())
     } else {
         Err(format!("machine record: http {}", r.status().as_u16()))
