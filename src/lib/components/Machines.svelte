@@ -9,7 +9,10 @@
   import IconBtn from "./ui/IconBtn.svelte";
 
   let loading = $state(false);
-  let me = $state("");
+  // this computer: by id (two computers may share a hostname), by name for
+  // a legacy record that has no id yet
+  let me = $state({ id: "", name: "" });
+  const isMe = (m) => (m.id ? m.id === me.id : m.name === me.name);
 
   async function load() {
     if (!$cloud?.signed_in) return;
@@ -24,7 +27,7 @@
   }
   onMount(async () => {
     try {
-      me = (await api.thisMachine()).name;
+      me = await api.thisMachine();
     } catch {}
     load();
   });
@@ -57,11 +60,11 @@
         desc="No machine has backed up yet. This one joins the list at its first backup."
       />
     {:else}
-      {#each $machines as m, i (m.name)}
+      {#each $machines as m, i (m.id || m.name)}
         {#if i > 0}<div class="ewe-list__divider"></div>{/if}
         <Row
           tall
-          class={m.name === me ? "is-active" : ""}
+          class={isMe(m) ? "is-active" : ""}
           title={m.name}
           sub={`ewe ${m.ewe_version || "?"} · ${m.apps_count ?? 0} apps · seen ${fmtTime(m.last_seen)}`}
         >
@@ -73,7 +76,7 @@
           {#if $sync?.remote_machine === m.name}
             <span class="ewe-badge ewe-badge--accent"><span class="ewe-badge__label">Saved the backup</span></span>
           {/if}
-          {#if m.name === me}
+          {#if isMe(m)}
             <span class="ewe-badge"><span class="ewe-badge__label">This machine</span></span>
           {/if}
         </Row>

@@ -8,7 +8,9 @@ use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::tools::{conf_get, conf_key_allowed, ewe_tool, ewe_version, home, hostname, run_tool};
+use crate::tools::{
+    conf_get, conf_key_allowed, ewe_tool, ewe_version, home, hostname, machine_id, run_tool,
+};
 
 fn estr<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
@@ -248,7 +250,10 @@ pub async fn shell_poke_cmd(verb: String) -> Result<(), String> {
     Ok(())
 }
 
-// ── the machine registry: <folder>/machines/<hostname>.json ─────────────────
+// ── the machine registry: <folder>/machines/<id>.json (id = machine_id()) ──
+// Until 0.15 the file was <hostname>.json — two computers with one hostname
+// overwrote each other. Legacy files are read (and hidden once an id record
+// of the same name exists); this computer deletes its own legacy file.
 
 struct Dav {
     base: String, // …/remote.php/dav/files/<user>/<folder>/machines/
@@ -332,13 +337,14 @@ pub async fn write_machine_record() -> Result<(), String> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let record = json!({
+        "id": machine_id(),
         "name": hostname(),
         "last_seen": now,
         "ewe_version": ewe_version(),
         "apps_count": apps,
         "app_version": env!("CARGO_PKG_VERSION"),
     });
-    let url = format!("{}{}.json", d.base, percent(&hostname()));
+    let url = format!("{}{}.json", d.base, machine_id());
     let r = c
         .put(&url)
         .basic_auth(&d.user, Some(&d.token))
@@ -348,6 +354,14 @@ pub async fn write_machine_record() -> Result<(), String> {
         .await
         .map_err(estr)?;
     if r.status().is_success() {
+        // the pre-id file of this computer's name: only ever ours or a
+        // same-named twin's, and the twin writes its own id file now too
+        let legacy = format!("{}{}.json", d.base, percent(&hostname()));
+        let _ = c
+            .delete(&legacy)
+            .basic_auth(&d.user, Some(&d.token))
+            .send()
+            .await;
         Ok(())
     } else {
         Err(format!("machine record: http {}", r.status().as_u16()))
@@ -407,6 +421,19 @@ pub async fn machines_list() -> Result<Value, String> {
             }
         }
     }
+    // a legacy <hostname>.json (no "id") hides behind an id record of that name
+    let named: std::collections::HashSet<String> = out
+        .iter()
+        .filter(|v| v.get("id").and_then(|i| i.as_str()).is_some())
+        .filter_map(|v| v.get("name").and_then(|n| n.as_str()).map(String::from))
+        .collect();
+    out.retain(|v| {
+        v.get("id").and_then(|i| i.as_str()).is_some()
+            || !v
+                .get("name")
+                .and_then(|n| n.as_str())
+                .is_some_and(|n| named.contains(n))
+    });
     out.sort_by(|a, b| {
         b["last_seen"]
             .as_u64()
@@ -418,7 +445,7 @@ pub async fn machines_list() -> Result<Value, String> {
 
 #[tauri::command]
 pub fn this_machine() -> Value {
-    json!({ "name": hostname(), "ewe_version": ewe_version() })
+    json!({ "id": machine_id(), "name": hostname(), "ewe_version": ewe_version() })
 }
 
 /// `ewe-sync --check`: are the tools here, what does the account say. For
