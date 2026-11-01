@@ -145,6 +145,19 @@ export function folderError(raw) {
 }
 
 /**
+ * A settings-sync error (`ewe-conf sync-status` / push: "no-provider", or a
+ * transport error) → { reason, hint } in plain words, like folderError.
+ */
+export function settingsError(raw) {
+  const s = String(raw || "");
+  if (s === "no-provider")
+    return { reason: "this computer isn’t connected to your account yet", hint: "Sign out and sign in again on the Account page to connect it." };
+  const f = folderError(s);
+  if (f.kind !== "other" && f.kind !== "missing") return { reason: f.reason, hint: f.hint };
+  return { reason: "the last try failed", hint: "Try again. If it keeps failing, Details has what the server said." };
+}
+
+/**
  * A conflict copy the Nextcloud engine left ("notes/plan (conflicted copy
  * 2026-10-31 153000).md", or the older "plan_conflict-20261031-153000.md")
  * → { file: "plan.md", dir: "notes", when: Date|null }. The copy is this
@@ -194,7 +207,7 @@ export const attention = derived([cloud, sync, folders, browser], ([$c, $s, $f, 
       kind: "settings", route: "machine", conflict: sc, machine: $s.remote_machine || "",
       mine: $s.remote_is_this_machine ?? null, when: $s.remote_modified || ""
     });
-  else if ($s?.error && $s.error !== "nothing-synced" && $s.error !== "not-signed-in")
+  else if ($s?.error && $s.error !== "nothing-synced" && $s.error !== "not-signed-in" && !$c.offline)
     out.push({ kind: "settings-error", route: "machine", raw: $s.error });
   if ($b?.installed && $b.on && $b.state === "error") out.push({ kind: "browser", route: "overview", raw: $b.error || "" });
   return out;

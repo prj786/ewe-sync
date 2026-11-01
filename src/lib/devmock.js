@@ -25,6 +25,7 @@
 //   slow=<command>                   that command never answers (loading states)
 //   keyring=locked|unavailable       signed out, with the keyring in the way
 //   reason=revoked                   signed out because access was revoked
+//   syncerror=<text>                 settings sync failed with that error
 function iso(minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60000).toISOString();
 }
@@ -132,6 +133,7 @@ export function install(params) {
             { id: "0f1e2d3c4b5a6978", name: "work-pc", last_seen: iso(60 * 26), ewe_version: "0.9.22", apps_count: 6 }
           ]
   };
+  if (params.get("syncerror")) Object.assign(state.sync, { ok: false, error: params.get("syncerror") });
   if (scene === "first") Object.assign(state.sync, { remote: null, remote_machine: "", remote_modified: "", conflict: null, in_sync: false });
   const scheme = params.get("scheme") || "ewe-dark";
   const handlers = {

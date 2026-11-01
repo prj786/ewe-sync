@@ -14,7 +14,7 @@
   import * as api from "../api";
   import {
     route, cloud, sync, busy, folders, browser, safe, preview, avatar, attention, focusFolder, toast,
-    fmtTime, fmtBytes, conflictOf, folderError, conflictInfo, firstLine
+    fmtTime, fmtBytes, conflictOf, folderError, settingsError, conflictInfo, firstLine
   } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
@@ -310,8 +310,9 @@
               {/snippet}
             </Alert>
           {:else if it.kind === "settings-error"}
-            <Alert tone="danger" title="Your settings didn’t sync">
-              {firstLine(it.raw) || "The last try failed."}
+            {@const e = settingsError(it.raw)}
+            <Alert tone="danger" title={`Your settings didn’t sync: ${e.reason}`}>
+              {e.hint}
               {#snippet actions()}
                 <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" aria-disabled={!!$busy} onclick={syncNow}>Try again</button>
                 <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" onclick={() => route.set("machine")}>See details</button>

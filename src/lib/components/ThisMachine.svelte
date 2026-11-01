@@ -7,7 +7,7 @@
   // action steps aside while that question is open.
   import { onMount } from "svelte";
   import * as api from "../api";
-  import { route, cloud, sync, busy, toast, fmtTime, conflictOf, firstLine } from "../stores";
+  import { route, cloud, sync, busy, toast, fmtTime, conflictOf, settingsError } from "../stores";
   import Toggle from "./ui/Toggle.svelte";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
@@ -43,6 +43,7 @@
   // whose settings the "use" choice brings: the other computer's, by name
   const useLabel = $derived(mine === true || !other ? "Use the account’s copy…" : `Use ${other}’s settings…`);
   const syncError = $derived($sync?.error && $sync.error !== "nothing-synced" && $sync.error !== "not-signed-in" ? $sync.error : "");
+  const syncErr = $derived(settingsError(syncError));
 
   async function backUp(force = false) {
     if ($busy) return;
@@ -134,12 +135,14 @@
         {/snippet}
       </Alert>
     {:else if syncError}
-      <Alert tone="danger" title="Your settings didn’t sync">
-        {firstLine(syncError)}
+      <Alert tone="danger" title={`Your settings didn’t sync: ${syncErr.reason}`}>
+        {syncErr.hint}
         {#if showDetails}<pre class="error-log">{syncError}</pre>{/if}
         {#snippet actions()}
           <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" aria-disabled={!!$busy} onclick={syncNow}>Try again</button>
-          {#if syncError.includes("\n")}
+          {#if syncError === "no-provider"}
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => route.set("account")}>Open Account</button>
+          {:else}
             <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" aria-expanded={showDetails} onclick={() => (showDetails = !showDetails)}>
               {showDetails ? "Hide details" : "Details"}
             </button>

@@ -188,13 +188,17 @@
     const tip = c?.signed_in ? `ewe Sync — ${c.display_name || c.user}` : "ewe Sync — not signed in";
     api.trayState($trayState, tip).catch(() => {});
   });
-  // the account's picture, once per sign-in (the rail, Overview, Account)
+  // the account's picture, once per sign-in (the rail, Overview, Account);
+  // a server without one is asked once, not on every refresh
+  let avatarAsked = false;
   $effect(() => {
     if (!$cloud?.signed_in) {
+      avatarAsked = false;
       if ($avatar) avatar.set("");
       return;
     }
-    if ($avatar) return;
+    if ($avatar || avatarAsked) return;
+    avatarAsked = true;
     api.cloudAvatar().then((a) => {
       if (a?.ok && a.path) avatar.set(api.fileSrc(a.path));
     }).catch(() => {});
