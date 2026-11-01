@@ -84,7 +84,7 @@ last run, conflicts and the account folder's ETag).
   `~/.config/ewe/cloud.json`.
 - **The one file** `~/.config/ewe/ewe.conf` and, in your account,
   `ewe/ewe.conf` + `ewe/ewe.conf.meta.json` (who saved it, when) +
-  `ewe/machines/<name>.json` (your machines).
+  `ewe/machines/<id>.json` (your machines; `<id>` = the first 16 hex of sha256("ewe:" + /etc/machine-id), shared with ewe-remote — before 0.15.1 it was `<hostname>.json`, which two computers with one name overwrote).
 - **This computer's folder state** (local paths, pauses, last runs,
   conflicts): `~/.local/state/ewe/ewe-sync.json`; what other apps read:
   `~/.local/state/ewe/sync-folders.json`; the "sync now, everyone" nudge:

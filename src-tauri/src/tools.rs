@@ -220,6 +220,42 @@ pub fn ewe_version() -> String {
     String::new()
 }
 
+/// This computer in the account: the first 16 hex of
+/// sha256("ewe:" + /etc/machine-id) — the SAME derivation as `ewe-remote`
+/// (RFC-009), so the two registries name a computer alike. Not the hostname:
+/// the owner's two machines are both called "emoh" and overwrote each
+/// other's `machines/emoh.json`. Not the raw machine id either (systemd: never
+/// publish it).
+pub fn machine_id() -> String {
+    use sha2::{Digest, Sha256};
+    for p in ["/etc/machine-id", "/var/lib/dbus/machine-id"] {
+        if let Ok(s) = std::fs::read_to_string(p) {
+            let mid = s.trim();
+            if !mid.is_empty() {
+                return id_from(mid);
+            }
+        }
+    }
+    let d = Sha256::digest(format!("ewe-host:{}", hostname()).as_bytes());
+    d.iter().take(8).map(|b| format!("{b:02x}")).collect()
+}
+
+fn id_from(mid: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let d = Sha256::digest(format!("ewe:{mid}").as_bytes());
+    d.iter().take(8).map(|b| format!("{b:02x}")).collect()
+}
+
+#[cfg(test)]
+mod machine_id_tests {
+    // the vector ewe-remote computes in Python:
+    // hashlib.sha256(b"ewe:" + mid).hexdigest()[:16]
+    #[test]
+    fn same_id_as_ewe_remote() {
+        assert_eq!(super::id_from("0123456789abcdef0123456789abcdef"), "d019c617096def78");
+    }
+}
+
 pub fn hostname() -> String {
     std::fs::read_to_string("/etc/hostname")
         .map(|s| s.trim().to_string())

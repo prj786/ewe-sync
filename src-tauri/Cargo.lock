@@ -993,12 +993,13 @@ dependencies = [
 
 [[package]]
 name = "ewe-sync"
-version = "0.15.0-beta"
+version = "0.15.1-beta"
 dependencies = [
  "notify",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
