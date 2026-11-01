@@ -518,21 +518,83 @@ code {
 
 @layer components {
   /* ── ewe-sync ─────────────────────────────────────────────────────────── */
-  /* the rail footer: the account and its sync state as a Badge dot */
-  .sync-state {
+  /* the rail footer: who is signed in, the state written under the name,
+     and an Avatar status dot that repeats it (Avatar card: "Always repeat
+     the status in text nearby") */
+  .who {
     display: flex;
     align-items: center;
     gap: var(--space-s);
-    min-height: var(--control-md);
-    padding: 0 var(--space-s);
-    font-size: var(--font-size-s);
-    line-height: var(--line-height-s);
-    color: var(--text-secondary);
+    width: 100%;
+    min-height: var(--control-xl);
+    padding: var(--space-xs) var(--space-s);
+    border: 0;
+    border-radius: var(--secondary);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .who:hover {
+    background: var(--surface-hover);
+  }
+  .who__avatar {
+    overflow: visible;
+  }
+  .who__img {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+  }
+  .who__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .who__name,
+  .who__state {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .who__name {
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-md);
+    font-weight: var(--font-weight-medium);
+  }
+  .who__state {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-muted);
+  }
+  .who__state.state-line--warning {
+    color: var(--warning);
+  }
+  .who__state.state-line--danger {
+    color: var(--danger);
+  }
+  /* a nav item's count (SideNav card: "an optional count Badge") */
+  .ewe-navitem > .nav-count {
+    flex: none;
   }
   @media (max-width: 720px) {
-    .sync-state {
+    .who {
       justify-content: center;
-      padding: 0;
+      padding-inline: 0;
+    }
+    .who__text {
+      display: none;
+    }
+    .ewe-navitem {
+      position: relative;
+    }
+    .ewe-navitem > .nav-count {
+      position: absolute;
+      top: 0;
+      right: 0;
     }
   }
   /* a row that is a button (providers, the console link) */
@@ -614,13 +676,6 @@ code {
   .ewe-btn.danger-text:disabled {
     color: var(--text-disabled);
   }
-  .iconbtn-row {
-    display: inline-flex;
-    gap: var(--space-xxs);
-  }
-  .folder-path {
-    color: var(--text-primary);
-  }
   .error-log {
     margin: 0;
     font-family: var(--font-mono);
@@ -678,10 +733,11 @@ code {
   /* the account row: free space as a small meter */
   .quota-mini {
     display: inline-flex;
+    flex: none;
     flex-direction: column;
     align-items: flex-end;
-    gap: var(--space-xxs);
-    width: calc(4 * var(--control-md));
+    gap: var(--space-xs);
+    width: calc(4 * var(--control-2xl) - var(--space-s) - var(--space-xs));
   }
   .quota-mini__track {
     width: 100%;
@@ -700,23 +756,18 @@ code {
   /* Suggested: the usual folders, one click each */
   .suggest {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(calc(5 * var(--control-md)), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(calc(7 * var(--control-md)), 1fr));
     gap: var(--space-s);
   }
   .suggest__item {
     display: flex;
-    flex-direction: row;
     align-items: center;
-    gap: var(--space-s);
+    gap: calc(var(--space-s) + var(--space-xs));
+    min-width: 0;
     padding: var(--space-s) calc(var(--space-s) + var(--space-xs));
-    font: inherit;
-    text-align: left;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-  .suggest__item:disabled {
-    cursor: not-allowed;
-    color: var(--text-disabled);
+    background: var(--surface-overlay);
+    border: var(--border-width-1) solid var(--border-subtle);
+    border-radius: var(--rounded);
   }
   .suggest__text {
     flex: 1;
@@ -734,9 +785,7 @@ code {
     font-size: var(--font-size-xs);
     line-height: var(--line-height-xs);
     color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   /* the add / change form */
   .folder-form {
@@ -810,3 +859,154 @@ code {
     color: var(--text-muted);
   }
 }
+
+@layer components {
+  /* ── the revamp (0.16) ─────────────────────────────────────────────────── */
+  /* the ⋯ menu, floating at its trigger (Menu.svelte places it) */
+  .menu-floating {
+    position: fixed;
+  }
+  .menu-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+  }
+  /* the sheet: its footer's note sits left, the buttons right */
+  .sheet-foot__note {
+    margin-right: auto;
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-muted);
+  }
+  .ewe-sheet__head > .sheet-back {
+    margin-left: calc(-1 * var(--space-xs));
+  }
+  .ewe-sheet__title {
+    margin: 0;
+  }
+  /* inside the folder sheet the account picker is the step, not a box */
+  .ewe-sheet__body .picker {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .ewe-sheet__body .picker__list {
+    max-height: none;
+  }
+  .form-grid--one {
+    grid-template-columns: 1fr;
+  }
+  /* a path field's hint reads as a hint, not as a typed value */
+  .ewe-input.ewe-mono::placeholder {
+    font-family: var(--font-sans);
+  }
+
+  /* loading rows (Skeleton card) in the shape of the rows they stand for */
+  .skel-rows {
+    display: flex;
+    flex-direction: column;
+  }
+  .skel-tile {
+    flex: none;
+    width: var(--control-lg);
+    height: var(--control-lg);
+  }
+  .skel-w1 {
+    width: 60%;
+  }
+  .skel-w2 {
+    width: 92%;
+  }
+  .skel-w3 {
+    width: 40%;
+  }
+
+  /* Overview: Needs you, then the account */
+  .needs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  .needs__title {
+    margin: 0;
+    padding: 0 var(--space-s);
+  }
+  .acct-avatar {
+    width: var(--control-xl);
+    height: var(--control-xl);
+    font-size: var(--font-size-lg);
+  }
+  .acct-name {
+    font-weight: var(--font-weight-medium);
+  }
+  .quota-mini__text {
+    text-align: right;
+  }
+  .quota-mini__text b {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+  }
+
+  /* Folders: what a folder needs sits under it, aligned with its name
+     (row padding + tile + the row's gap) */
+  .row-attach {
+    padding: 0 var(--space-s) var(--space-s) calc(2 * var(--space-s) + var(--space-xs) + var(--control-lg));
+  }
+  .conflict-list {
+    margin: var(--space-xs) 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-s);
+  }
+  .conflict-list__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+  }
+  .conflict-list__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .conflict-list__name,
+  .conflict-list__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .conflict-list__name {
+    font-weight: var(--font-weight-medium);
+  }
+  .conflict-list__meta {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-xs);
+    color: var(--text-secondary);
+  }
+  .conflict-list__actions {
+    display: flex;
+    gap: var(--space-s);
+    flex: none;
+  }
+  .ewe-alert .error-log {
+    margin-top: var(--space-xs);
+    max-height: calc(10 * var(--line-height-xs));
+    overflow: auto;
+    color: var(--text-secondary);
+  }
+
+  /* Google: a step dot in place of a row's tile */
+  .ewe-row > .ewe-step {
+    flex: none;
+    width: var(--control-lg);
+    justify-content: center;
+  }
+  .path-line {
+    font-size: var(--font-size-xs);
+  }
+}
+

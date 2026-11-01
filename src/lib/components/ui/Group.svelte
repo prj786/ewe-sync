@@ -2,16 +2,18 @@
   /**
    * A group on a page: an overline Section header right above a list well of
    * rows. `action` is the header's optional button (bottom right). `well =
-   * false` leaves the content bare (a card, a form).
+   * false` leaves the content bare (a card, a form). `variant = "title"`
+   * uses the Section header's 15px title, for a group that needs a sentence
+   * under its name (an 11px overline over 13px prose reads upside down).
    */
-  let { title = "", desc = "", well = true, class: className = "", action, children, after } = $props();
+  let { title = "", desc = "", well = true, variant = "overline", class: className = "", action, children, after } = $props();
 </script>
 
 <section class="group {className}">
   {#if title || desc || action}
     <div class="ewe-section">
       <div class="ewe-section__text">
-        {#if title}<h2 class="ewe-section__title ewe-section__title--overline">{title}</h2>{/if}
+        {#if title}<h2 class="ewe-section__title {variant === 'overline' ? 'ewe-section__title--overline' : ''}">{title}</h2>{/if}
         {#if desc}<p class="ewe-section__desc">{desc}</p>{/if}
       </div>
       {@render action?.()}

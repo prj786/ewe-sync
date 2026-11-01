@@ -46,5 +46,18 @@ export const ICONS = {
   cloudDownload: 0xE089,
   cloudUpload: 0xE091,
   chevronLeft: 0xE06E,
-  sparkles: 0xE412
+  sparkles: 0xE412,
+  // the revamp (0.16): one ⋯ menu per row, the sheet's back step, the
+  // mockup's nav glyphs, folder kinds in Suggested
+  more: 0xE0B6, // ellipsis
+  arrowLeft: 0xE048,
+  home: 0xE0F5, // house
+  sliders: 0xE29A, // sliders-horizontal
+  laptop: 0xE1CD,
+  server: 0xE153,
+  music: 0xE122,
+  image: 0xE0F6,
+  video: 0xE1A5,
+  fileText: 0xE0CC,
+  download: 0xE0B2
 };
