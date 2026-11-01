@@ -115,6 +115,38 @@ code {
   outline-offset: var(--border-width-1);
 }
 
+/* Geist and Geist Mono (OFL, assets/GEIST-LICENSE): the ewe faces, bundled
+   so the app never depends on the fonts the ewe dotfiles install — a fresh
+   user (or a machine without the dotfiles) fell back to system-ui before
+   0.16. The same variable files as the shell and ewe Safe. */
+@font-face {
+  font-family: "Geist";
+  src: url("./assets/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("./assets/Geist-Italic-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./assets/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./assets/GeistMono-Italic-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: block;
+}
 @font-face {
   font-family: "lucide";
   src: url("./assets/Lucide.ttf") format("truetype");

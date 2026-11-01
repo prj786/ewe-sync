@@ -78,4 +78,7 @@ package() {
     "$pkgdir/usr/lib/systemd/user/ewe-sync.service"
 
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # the bundled faces (compiled into the binary's frontend): Geist is OFL
+  install -Dm644 src/assets/GEIST-LICENSE "$pkgdir/usr/share/licenses/$pkgname/GEIST-LICENSE"
+  install -Dm644 src/assets/LUCIDE-LICENSE "$pkgdir/usr/share/licenses/$pkgname/LUCIDE-LICENSE"
 }
