@@ -233,7 +233,7 @@ pub async fn conf_get_cmd(key: String) -> Result<Value, String> {
 #[tauri::command]
 pub async fn conf_set_cmd(key: String, value: Value) -> Result<(), String> {
     if !conf_key_allowed(&key) {
-        return Err(format!("ewe-sync may not set {key}"));
+        return Err(format!("ewe Sync may not set {key}"));
     }
     let v = value.to_string();
     let o = run_tool("ewe-conf", &["set", "--no-hooks", &key, &v], None, &[]).await?;

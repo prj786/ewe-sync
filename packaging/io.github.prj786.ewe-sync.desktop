@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=ewe-sync
+Name=ewe Sync
 GenericName=Account
-Comment=Your ewe account — the one file, your machines, your folders
+Comment=Your ewe account: settings, folders and computers in your own Nextcloud
 Exec=ewe-sync
 Icon=io.github.prj786.ewe-sync
 Terminal=false
 Categories=Utility;
-Keywords=nextcloud;account;sync;backup;restore;ewe;
+Keywords=nextcloud;account;sync;backup;restore;folders;computers;ewe;ewe-sync;
 StartupWMClass=ewe-sync

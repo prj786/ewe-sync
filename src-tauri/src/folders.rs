@@ -802,7 +802,7 @@ impl Runner {
             out.push((
                 PathBuf::from(&f.local),
                 format!(
-                    "The Nextcloud app already syncs {}. Let ewe-sync take it over first, or pick another folder.",
+                    "The Nextcloud app already syncs {}. Let ewe Sync take it over first, or pick another folder.",
                     tilde(Path::new(&f.local))
                 ),
             ));
@@ -1159,7 +1159,7 @@ impl Runner {
             if !f.paused && overlaps(local, Path::new(&f.local)) {
                 return Err((
                     format!(
-                        "The Nextcloud app is syncing {} too. Quit it, or let ewe-sync take its folders over.",
+                        "The Nextcloud app is syncing {} too. Quit it, or let ewe Sync take its folders over.",
                         tilde(Path::new(&f.local))
                     ),
                     false,
@@ -1198,13 +1198,13 @@ impl Runner {
             let out = std::process::Command::new("notify-send")
                 .args([
                     "-a",
-                    "ewe-sync",
+                    "ewe Sync",
                     "-i",
                     "folder-sync",
                     "-A",
                     "open=Choose which to keep",
                     &title,
-                    "Both copies are kept. Open ewe-sync to choose which one stays.",
+                    "Both copies are kept. Open ewe Sync to choose which one stays.",
                 ])
                 .stdin(Stdio::null())
                 .stderr(Stdio::null())

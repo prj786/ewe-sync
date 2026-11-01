@@ -18,7 +18,7 @@ pub fn show_main(app: &AppHandle) {
 /// The frontend owns the state machine; it tells the tray what to show.
 #[tauri::command]
 pub fn tray_state(_app: AppHandle, state: String, tooltip: Option<String>) -> Result<(), String> {
-    let tip = tooltip.unwrap_or_else(|| "ewe-sync".into());
+    let tip = tooltip.unwrap_or_else(|| "ewe Sync".into());
     poke_shell(&state, &tip);
     Ok(())
 }
