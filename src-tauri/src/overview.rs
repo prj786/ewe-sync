@@ -86,7 +86,7 @@ pub fn status_line() -> String {
                 "signed_in": crate::tools::cloud_meta().is_some(),
                 "state": if crate::tools::cloud_meta().is_some() { "idle" } else { "signed-out" },
                 "folders": [],
-                "note": "ewe-sync has not run yet on this machine",
+                "note": "ewe Sync has not run yet on this computer",
             })
         })
         .to_string()

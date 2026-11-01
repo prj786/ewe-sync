@@ -17,6 +17,15 @@
 //                                    (Overview's "Welcome back")
 //   scene=first                      the first computer: no backup, no folders
 //   app=1                            the Nextcloud desktop app syncs ~/Nextcloud
+//   error=1                          Documents couldn't sync (the account is full)
+//   conflicts=N                      Projects has N files changed in two places
+//   offline=1                        the server doesn't answer
+//   browser=error                    ewe Browser's last sync failed
+//   machines=0                       no computer has backed up yet
+//   slow=<command>                   that command never answers (loading states)
+//   keyring=locked|unavailable       signed out, with the keyring in the way
+//   reason=revoked                   signed out because access was revoked
+//   syncerror=<text>                 settings sync failed with that error
 function iso(minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60000).toISOString();
 }
@@ -31,15 +40,27 @@ function avatarDataUri() {
 
 export function install(params) {
   const signedOut = params.get("state") === "out";
+  const offline = params.get("offline") === "1";
+  const nConflicts = Math.max(1, Number(params.get("conflicts")) || 1);
+  const conflictFiles = [
+    "notes/plan (conflicted copy 2026-10-31 153000).md",
+    "report (conflicted copy 2026-11-01 091512).odt",
+    "budget (conflicted copy 2026-11-01 101030).ods",
+    "slides/intro (conflicted copy 2026-11-01 111500).odp",
+    "todo_conflict-20261101-120000.txt"
+  ].slice(0, nConflicts);
   const scene = params.get("scene") || "";
   if (scene === "new") params.set("conflict", "exists");
   const now = Math.floor(Date.now() / 1000);
   const server = "https://ivo.lv.tab.digital";
   const state = {
     cloud: signedOut
-      ? { ok: true, signed_in: false, keyring: true, keyring_state: "ok", keyring_locked: false }
+      ? {
+          ok: true, signed_in: false, keyring: true, keyring_state: params.get("keyring") || "ok",
+          keyring_locked: params.get("keyring") === "locked", reason: params.get("reason") || ""
+        }
       : {
-          ok: true, signed_in: true, offline: false, server, user: "scubba", login_name: "scubba",
+          ok: true, signed_in: true, offline, server, user: "scubba", login_name: "scubba",
           display_name: "Scubba", email: "scubba@tab.digital",
           quota: { used: 1288490188, total: 5368709120, relative: 24 },
           keyring: true, keyring_state: "ok", keyring_locked: false
@@ -61,18 +82,28 @@ export function install(params) {
         scene === "new" || scene === "first" || params.get("app") === "1"
           ? []
           : [
-              {
-                key: "Documents|two-way", name: "Documents", state: "synced", paused: false, offline: false,
-                pair: { remote: "Documents", local: "~/Documents", mode: "two-way", trigger: "change", interval: 10, exclude: [] },
-                local_effective: "/home/scubba/Documents", running: false,
-                last_run: now - 120, last_ok: true, last_error: "", conflicts: []
-              },
+              params.get("error") === "1"
+                ? {
+                    key: "Documents|two-way", name: "Documents", state: "error", paused: false, offline: false,
+                    pair: { remote: "Documents", local: "~/Documents", mode: "two-way", trigger: "change", interval: 10, exclude: [] },
+                    local_effective: "/home/scubba/Documents", running: false,
+                    last_run: now - 300, last_ok: false,
+                    last_error:
+                      "11-01 17:02:11:514 [ warning nextcloud.sync.networkjob.put ]: PUT of \"Documents/thesis.pdf\" FINISHED WITH STATUS \"UnknownContentError Server replied \\\"507 Insufficient Storage\\\" to \\\"PUT https://ivo.lv.tab.digital/remote.php/dav/files/scubba/Documents/thesis.pdf\\\"\"\n11-01 17:02:11:520 [ critical nextcloud.sync.engine ]: Insufficient remote storage\n#=#=#=# Syncing changes.",
+                    conflicts: []
+                  }
+                : {
+                    key: "Documents|two-way", name: "Documents", state: offline ? "offline" : "synced", paused: false, offline,
+                    pair: { remote: "Documents", local: "~/Documents", mode: "two-way", trigger: "change", interval: 10, exclude: [] },
+                    local_effective: "/home/scubba/Documents", running: false,
+                    last_run: now - 120, last_ok: true, last_error: "", conflicts: []
+                  },
               {
                 key: "Projects|two-way", name: "Projects", state: "conflict", paused: false, offline: false,
                 pair: { remote: "Projects", local: "~/Projects", mode: "two-way", trigger: "change", interval: 10, exclude: ["node_modules", "target"] },
                 local_effective: "/home/scubba/Projects", running: false,
-                last_run: now - 300, last_ok: true, last_error: "",
-                conflicts: ["notes/plan (conflicted copy 2026-10-31 153000).md"]
+                last_run: now - 540, last_ok: true, last_error: "",
+                conflicts: conflictFiles
               },
               {
                 key: "Photos|upload", name: "Pictures", state: "paused", paused: true, offline: false,
@@ -81,7 +112,7 @@ export function install(params) {
                 last_run: now - 86400, last_ok: true, last_error: "", conflicts: []
               }
             ],
-      auto: true, syncing: false, conflicts: 1, errors: 0, engines: { nextcloudcmd: true, rclone: true },
+      auto: true, syncing: false, conflicts: nConflicts, errors: params.get("error") === "1" ? 1 : 0, engines: { nextcloudcmd: true, rclone: true },
       app: params.get("app") === "1"
         ? { running: true, folders: [{ local: "/home/scubba/Nextcloud", remote: "", paused: false, name: "Nextcloud" }] }
         : { running: false, folders: [] },
@@ -94,11 +125,15 @@ export function install(params) {
       { kind: "pictures", name: "Pictures", local: "~/Pictures", remote: "Pictures", in_account: false, remote_size: null, exclude: [] },
       { kind: "music", name: "Music", local: "~/Music", remote: "Music", in_account: false, remote_size: null, exclude: [] }
     ],
-    machines: [
-      { name: "emoh", last_seen: iso(120), ewe_version: "0.9.23", apps_count: 24 },
-      { name: "ewe-vm", last_seen: iso(60 * 26), ewe_version: "0.9.22", apps_count: 6 }
-    ]
+    machines:
+      params.get("machines") === "0"
+        ? []
+        : [
+            { id: "a1b2c3d4e5f60718", name: "emoh", last_seen: iso(2), ewe_version: "0.9.23", apps_count: 24 },
+            { id: "0f1e2d3c4b5a6978", name: "work-pc", last_seen: iso(60 * 26), ewe_version: "0.9.22", apps_count: 6 }
+          ]
   };
+  if (params.get("syncerror")) Object.assign(state.sync, { ok: false, error: params.get("syncerror") });
   if (scene === "first") Object.assign(state.sync, { remote: null, remote_machine: "", remote_modified: "", conflict: null, in_sync: false });
   const scheme = params.get("scheme") || "ewe-dark";
   const handlers = {
@@ -123,7 +158,7 @@ export function install(params) {
     shell_poke_cmd: () => null,
     machines_list: () => state.machines,
     machines_write: () => null,
-    this_machine: () => ({ name: "emoh", ewe_version: "0.9.23", apps_count: 24 }),
+    this_machine: () => ({ id: "a1b2c3d4e5f60718", name: "emoh", ewe_version: "0.9.23", apps_count: 24 }),
     folders_list: () => state.folders,
     folders_set: ({ pairs }) => {
       state.folders.pairs = pairs.map((p) => ({
@@ -172,7 +207,10 @@ export function install(params) {
           ]
     }),
     take_deep_link: () => (params.get("add") ? { pane: "folders", add_folder: params.get("add") } : null),
-    browser_status: () => ({ installed: true, on: true, state: "idle", last_sync: Date.now() - 240000, error: null }),
+    browser_status: () =>
+      params.get("browser") === "error"
+        ? { installed: true, on: true, state: "error", last_sync: Date.now() - 7200000, error: "The account didn’t accept the upload (HTTP 403)." }
+        : { installed: true, on: true, state: "idle", last_sync: Date.now() - 240000, error: null },
     safe_status: () => ({ installed: true, answered: true, set_up: true, place: "nextcloud", state: "in-sync", last: iso(30) }),
     open_safe: () => null,
     sync_everything: () => ({ ok: true, action: "none" }),
@@ -235,7 +273,10 @@ export function install(params) {
   {
     const pane = params.get("pane");
     setTimeout(() => {
-      if (pane) document.querySelector(`.ewe-navitem[title="${pane}"]`)?.click();
+      if (pane)
+        [...document.querySelectorAll(".ewe-navitem")]
+          .find((b) => b.querySelector(".ewe-navitem__label")?.textContent.trim() === pane || b.dataset.route === pane)
+          ?.click();
       setTimeout(() => {
         if (params.get("click")) document.querySelector(params.get("click"))?.click();
         if (params.get("focus")) {
@@ -249,6 +290,7 @@ export function install(params) {
   window.__EWE_SYNC_MOCK__ = {
     invoke: (cmd, args) =>
       new Promise((res, rej) => {
+        if (params.get("slow") === cmd) return; // never answers: the loading state
         const h = handlers[cmd];
         setTimeout(() => (h ? res(h(args || {})) : rej(new Error("mock: unknown command " + cmd))), 30);
       }),

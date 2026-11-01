@@ -1,5 +1,5 @@
 [Unit]
-Description=ewe-sync — the ewe account app (tray)
+Description=ewe Sync — the ewe account app
 PartOf=graphical-session.target
 After=graphical-session.target ewe.service
 

@@ -1,27 +1,34 @@
 <script>
+  // Account — your own Nextcloud. Signed in: who, where and how much room,
+  // in one well, and at the bottom the rare, disruptive Sign out (confirmed,
+  // like Stop syncing). Signed out: the sign-in (your browser opens your
+  // server's page; ewe never sees the password), what blocks it (access
+  // revoked, a locked or missing keyring) right under the title, and where
+  // to get an account.
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as api from "../api";
-  import { cloud, busy, loginUrl, toast, fmtBytes, route } from "../stores";
+  import { cloud, busy, loginUrl, avatar, toast, fmtBytes, route } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
   import Row from "./ui/Row.svelte";
   import KV from "./ui/KV.svelte";
   import Alert from "./ui/Alert.svelte";
+  import Dialog from "./ui/Dialog.svelte";
   import Icon from "./ui/Icon.svelte";
 
   let { refresh } = $props();
 
   let server = $state(localStorage.getItem("ewe-sync.lastServer") || "");
   let error = $state("");
-  let avatar = $state("");
   let resetDone = $state(false);
+  let confirmSignOut = $state(false);
 
   const providers = [
-    { name: "I run my own", url: "https://nextcloud.com/install/", note: "Any Nextcloud you administer" },
-    { name: "Murena", url: "https://murena.io/signup", note: "The de-Googled cloud, free tier" },
-    { name: "Disroot", url: "https://user.disroot.org/pages/signup", note: "Privacy-first, community run" },
-    { name: "tab.digital", url: "https://tab.digital/", note: "Hosted Nextcloud, free tier" },
-    { name: "Infomaniak", url: "https://www.infomaniak.com/en/ksuite", note: "Swiss, free kSuite" }
+    { name: "I run my own", url: "https://nextcloud.com/install/", note: "Any Nextcloud you administer", icon: "server" },
+    { name: "Murena", url: "https://murena.io/signup", note: "The de-Googled cloud, free tier", icon: "cloud" },
+    { name: "Disroot", url: "https://user.disroot.org/pages/signup", note: "Privacy-first, community run", icon: "cloud" },
+    { name: "tab.digital", url: "https://tab.digital/", note: "Hosted Nextcloud, free tier", icon: "cloud" },
+    { name: "Infomaniak", url: "https://www.infomaniak.com/en/ksuite", note: "Swiss, free kSuite", icon: "cloud" }
   ];
 
   const keyringState = $derived($cloud?.keyring_state || "ok");
@@ -48,10 +55,10 @@
         await refresh();
         try {
           const a = await api.cloudAvatar();
-          if (a?.ok && a.path) avatar = api.fileSrc(a.path) + (String(a.path).startsWith("data:") ? "" : "?t=" + Date.now());
+          if (a?.ok && a.path) avatar.set(api.fileSrc(a.path) + (String(a.path).startsWith("data:") ? "" : "?t=" + Date.now()));
         } catch {}
-        // the same next steps as the shell's sign-in: the one file learns
-        // its account, auto-sync is on, ~/Nextcloud appears; then Overview
+        // the same next steps as the shell's sign-in: your settings learn
+        // their account, auto-sync is on, ~/Nextcloud appears; then Overview
         // offers to bring everything back (or to choose the folders to keep)
         await api.afterSignIn().catch(() => {});
         await refresh();
@@ -68,12 +75,13 @@
   }
 
   async function signOut() {
+    confirmSignOut = false;
     if ($busy) return;
     busy.set("logout");
     try {
       await api.cloudLogout();
       await api.afterSignOut().catch(() => {});
-      avatar = "";
+      avatar.set("");
       toast("Signed out. Your files stay on this computer.", "info");
     } catch (e) {
       toast(String(e), "error");
@@ -95,34 +103,23 @@
     }
   }
 
-  $effect(() => {
-    if ($cloud?.signed_in && !avatar) {
-      api.cloudAvatar().then((a) => {
-        if (a?.ok && a.path) avatar = api.fileSrc(a.path);
-      }).catch(() => {});
-    }
-  });
-
-  const quotaPct = $derived(Math.max(0, Math.min(100, Math.round(($cloud?.quota?.relative ?? 0) * 1))));
+  const quotaPct = $derived(Math.max(0, Math.min(100, Math.round($cloud?.quota?.relative ?? 0))));
+  const host = $derived(String($cloud?.server || "").replace(/^https?:\/\//, "").replace(/\/+$/, ""));
 </script>
 
-{#snippet signOutAction()}
-  <button class="ewe-btn ewe-btn--secondary" disabled={!!$busy} onclick={signOut}>
-    <Icon name="logOut" />{$busy === "logout" ? "Signing out…" : "Sign out"}
-  </button>
-{/snippet}
-
-<Page
-  title="Account"
-  desc="Your Nextcloud account: it backs up ewe.conf and syncs your folders."
-  actions={$cloud?.signed_in ? signOutAction : undefined}
->
+<Page title="Account" desc="Your own Nextcloud. It keeps your settings, folders, browser and passwords.">
   {#if $cloud?.signed_in}
-    <Group title="Nextcloud">
+    {#if $cloud.offline}
+      <Alert tone="" icon="cloudOff" title="Your server didn’t answer">
+        Showing what was known at the last check.{$cloud.reason ? ` ${$cloud.reason}` : ""}
+      </Alert>
+    {/if}
+
+    <Group title="Your account">
       <Row tall title={$cloud.display_name || $cloud.user} sub={$cloud.email || $cloud.user}>
         {#snippet lead()}
-          {#if avatar}
-            <img class="ewe-avatar ewe-avatar--lg avatar-img" src={avatar} alt="" />
+          {#if $avatar}
+            <img class="ewe-avatar ewe-avatar--lg avatar-img" src={$avatar} alt="" />
           {:else}
             <span class="ewe-avatar ewe-avatar--lg" aria-hidden="true">
               {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
@@ -131,25 +128,15 @@
         {/snippet}
       </Row>
       <div class="ewe-list__divider"></div>
-      <KV k="Server" v={$cloud.server} mono />
+      <KV k="Server" v={host} mono />
       <KV k="Signed in as" v={$cloud.user} />
-    </Group>
-
-    {#if $cloud.offline}
-      <Alert tone="warning" title="Your server didn’t answer">
-        Showing what was known at the last check.{$cloud.reason ? ` ${$cloud.reason}` : ""}
-      </Alert>
-    {/if}
-
-    {#if $cloud.quota && $cloud.quota.total > 0}
-      <Group title="Storage">
+      {#if $cloud.quota && $cloud.quota.total > 0}
+        <div class="ewe-list__divider"></div>
         <div class="ewe-row ewe-row--block">
-          <div
-            class="ewe-meter {quotaPct >= 95 ? 'ewe-meter--danger' : quotaPct >= 80 ? 'ewe-meter--warning' : ''}"
-          >
+          <div class="ewe-meter {quotaPct >= 95 ? 'ewe-meter--danger' : quotaPct >= 80 ? 'ewe-meter--warning' : ''}">
             <div class="ewe-meter__head">
               <Icon name="cloud" />
-              <span>{fmtBytes($cloud.quota.used)} of {fmtBytes($cloud.quota.total)} used</span>
+              <span>{fmtBytes($cloud.quota.used)} of {fmtBytes($cloud.quota.total)} used · {fmtBytes($cloud.quota.total - $cloud.quota.used)} free</span>
               <span class="ewe-meter__value">{quotaPct}%</span>
             </div>
             <div
@@ -164,55 +151,67 @@
             </div>
           </div>
         </div>
-      </Group>
-    {/if}
+      {/if}
+    </Group>
+
+    <Group title="This computer">
+      <Row title="Sign out of this computer" sub="Syncing stops here. Your files and settings stay on this computer and in your account.">
+        <button class="ewe-btn ewe-btn--sm ewe-btn--ghost danger-text" aria-disabled={!!$busy} onclick={() => !$busy && (confirmSignOut = true)}>
+          {#if $busy === "logout"}<span class="ewe-spinner ewe-spinner--sm" aria-hidden="true"></span>Signing out…{:else}<Icon name="logOut" />Sign out…{/if}
+        </button>
+      </Row>
+    </Group>
 
     <p class="note">
-      This machine appears in your Nextcloud under Settings → Security as “ewe”. Revoking it there signs this
-      machine out.
+      This computer appears in your Nextcloud under Settings → Security as “ewe”. Revoking it there signs this computer
+      out.
     </p>
   {:else}
-    <Group title="Sign in" well={false}>
-      <div class="ewe-card">
-        <p class="ewe-card__desc">
-          Sign in to your own Nextcloud, self-hosted or from a provider. Your browser opens your server’s
-          sign-in page; ewe never sees your password.
-        </p>
-        {#if $cloud?.reason === "revoked"}
-          <Alert tone="warning" title="Access was revoked">
-            This machine’s access was revoked on the server. Sign in again to continue.
-          </Alert>
+    {#if $cloud?.reason === "revoked"}
+      <Alert tone="warning" title="Access was revoked">
+        This computer’s access was revoked on the server. Sign in again to continue.
+      </Alert>
+    {/if}
+    {#if keyringTrouble}
+      <Alert tone="warning" title="The keyring needs attention">
+        {#if keyringState === "locked"}
+          Your keyring is locked. An “Unlock keyring” prompt will appear: answer it with your login password. If it keeps
+          rejecting that password, reset the keyring.
+        {:else if keyringState === "unavailable"}
+          No keyring is running. gnome-keyring must be installed and started for this session.
+        {:else}
+          The keyring refused the last sign-in. Reset it, sign out of the desktop and back in, then sign in here again.
         {/if}
-        {#if keyringTrouble}
-          <Alert tone="warning" title="The keyring needs attention">
-            {#if keyringState === "locked"}
-              Your keyring is locked. An “Unlock keyring” prompt will appear: answer it with your login password. If
-              it keeps rejecting that password, reset the keyring.
-            {:else if keyringState === "unavailable"}
-              No keyring is running. gnome-keyring must be installed and started for this session.
-            {:else}
-              The keyring refused the last sign-in. Reset it, sign out of the desktop and back in, then sign in
-              here again.
-            {/if}
-            {#snippet actions()}
-              {#if !resetDone}
-                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={resetKeyring}>Reset the keyring</button>
-              {:else}
-                <button
-                  class="ewe-btn ewe-btn--sm ewe-btn--secondary"
-                  onclick={() => api.sessionLogout().catch((e) => toast(String(e), "error"))}>Sign out now</button
-                >
-              {/if}
-            {/snippet}
-          </Alert>
-        {/if}
+        {#snippet actions()}
+          {#if !resetDone}
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={resetKeyring}>Reset the keyring</button>
+          {:else}
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => api.sessionLogout().catch((e) => toast(String(e), "error"))}
+              >Sign out of the desktop now</button
+            >
+          {/if}
+        {/snippet}
+      </Alert>
+    {/if}
+
+    <Group well={false}>
+      <div class="ewe-card signin-card">
+        <div class="ewe-card__head">
+          <span class="ewe-card__icon ewe-card__icon--accent"><Icon name="cloud" /></span>
+          <div class="ewe-card__titles">
+            <div class="ewe-card__title">Sign in to your Nextcloud</div>
+            <div class="ewe-card__desc">
+              Self-hosted or from a provider. Your browser opens your server’s sign-in page; ewe never sees your password.
+            </div>
+          </div>
+        </div>
         <label class="ewe-field">
           <span class="ewe-field__label">Server address</span>
           <span class="signin-line">
             <input
               class="ewe-input"
               class:is-error={!!error}
-              placeholder="https://cloud.example.org"
+              placeholder="cloud.example.org"
               bind:value={server}
               disabled={$busy === "signin"}
               onkeydown={(e) => e.key === "Enter" && signIn()}
@@ -243,11 +242,14 @@
     </Group>
 
     <Group
-      title="Create an account"
-      desc="ewe-sync can’t create accounts; only a server’s own sign-up page can. Pick a provider, sign up in the browser, then come back and sign in. Examples, not endorsements."
+      title="No account yet?"
+      variant="title"
+      desc="ewe Sync can’t create one: only a server’s own sign-up page can. Pick one, sign up in the browser, then come back and sign in."
     >
-      {#each providers as p}
+      {#each providers as p, i}
+        {#if i > 0}<div class="ewe-list__divider"></div>{/if}
         <button class="ewe-row ewe-row--interactive row-button" onclick={() => openUrl(p.url)}>
+          <span class="ewe-row__lead ewe-row__lead--tile"><Icon name={p.icon} /></span>
           <span class="ewe-row__text">
             <span class="ewe-row__title">{p.name}</span>
             <span class="ewe-row__desc">{p.note}</span>
@@ -256,5 +258,20 @@
         </button>
       {/each}
     </Group>
+    <p class="note">Examples, not endorsements.</p>
   {/if}
 </Page>
+
+{#if confirmSignOut}
+  <Dialog
+    title={`Sign out of ${host || "your account"}?`}
+    icon="logOut"
+    tone="danger"
+    confirm="Sign out"
+    onConfirm={signOut}
+    onCancel={() => (confirmSignOut = false)}
+  >
+    Folders, settings, ewe Browser and ewe Safe stop syncing on this computer. Nothing is deleted: your files stay here
+    and in your account, and everything picks up again when you sign in.
+  </Dialog>
+{/if}

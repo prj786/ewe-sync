@@ -1,30 +1,30 @@
-# ewe-sync — the account and sync app
+# ewe Sync — the account and sync app
 
 **Your ewe account, in one place** — sign in once and everything follows:
 your settings and apps (`ewe.conf`), your browser, your passwords and your
 folders, on every computer you sign in to. The bar shows the state; the
 window opens on the Overview.
 
-ewe-sync is the account app of [ewe OS](https://github.com/prj786/ewe-os)
+**ewe Sync** (package, binary and app id `ewe-sync`) is the account app of [ewe OS](https://github.com/prj786/ewe-os)
 (RFC-006; drafted under the working name Flock). Komble installs apps and records them in the one file;
-ewe-settings edits the one file; **ewe-sync moves the one file and your folders
-between your machines**. Nothing else in ewe has a sync button.
+ewe Settings edits the one file; **ewe Sync moves the one file and your folders
+between your computers**. Nothing else in ewe has a sync button.
 
 ## What it does
 
 | pane | what |
 |---|---|
-| Overview | everything the account keeps, on one page: settings & apps, the browser, passwords (Safe), folders — each with its state and, where it is this computer's choice, a switch. Signed out it says what signing in brings; on a **new computer** whose account holds a backup it offers **Bring everything back** (what comes back, with sizes, before you say yes); on the **first** computer it offers the folders worth keeping (with sizes against the account's free space). One **Sync now** for everything |
+| Overview | everything the account keeps, on one page. **Needs you** first: every open problem (a folder changed in two places or couldn't sync, two computers' settings, ewe Browser failing) as one alert with the action that resolves it — the same list puts a count on the nav and the state under your name in the rail. Then the account (free space) and one row each for settings & apps, ewe Browser, passwords (ewe Safe), folders — with its state and, where it is this computer's choice, a switch. Signed out it says what signing in brings; on a **new computer** whose account holds a backup it offers **Bring everything back** (what comes back, with sizes, before you say yes); on the **first** computer it offers the folders worth keeping (with sizes against the account's free space). One **Sync now** for everything |
 | Account | sign in to *your* Nextcloud (any provider, or your own server) through the server's own login page; who you are, storage; sign out; links to providers where you can create an account |
-| Mail | any IMAP mailbox — the inbox your Nextcloud provider gives you, one you host, or a work account: add, change, remove, check unread. The password goes to the keyring; only host/user/port reach `ewe.conf`. (Whether new mail *notifies* is a per-machine setting, in Settings → User) |
+| Mail | any IMAP mailbox — the inbox your Nextcloud provider gives you, one you host, or a work account: add, change, remove, check unread. The password goes to the keyring; only host/user/port reach `ewe.conf`. (Whether new mail *notifies* is a per-computer setting, in ewe Settings → User) |
 | Google | the optional extra: where your own `oauth-client.json` goes and whether it parses, connect / disconnect, Gmail and Drive state. ewe ships no Google client — never settings sync |
-| Settings & apps | the one file: backup saved by which machine and when, when this computer last synced, auto-sync switch, Sync now / Back up / Restore, the decision when two computers changed it |
-| Machines | your machines — every machine that backed up to the account, with its ewe version and app count |
-| Folders | every folder connected to the account: the ones ewe-sync keeps in step (open, sync now, pause on this computer, change, stop syncing), suggested user folders one click away, folders the Nextcloud desktop app still syncs (with **Let ewe-sync take over**), and the whole account as `~/Nextcloud`; conflicts resolved in place |
+| Settings & apps | the one file: backup saved by which computer and when, when this computer last synced, auto-sync switch, Sync now / Back up / Restore, the decision when two computers changed it (use the other computer's settings, or keep this computer's) |
+| Computers | every computer that backed up to the account, with its ewe version, app count and when it was last seen (pane id `machines`) |
+| Folders | every folder connected to the account: the ones ewe Sync keeps in step (a state badge and one ⋯ menu: open, sync now, pause on this computer, change, stop syncing; add and change in a sheet), suggested user folders one click away, folders the Nextcloud desktop app still syncs (with **Let ewe Sync take over**), and the whole account as `~/Nextcloud`; conflicts and errors sit under their folder in plain words, the engine's own output behind Details |
 
 The bar shows the state (syncing · needs you · offline — silent while all is
-well); a click opens the window. Rule 6 holds: the browser and Safe sync by
-themselves, ewe-sync is the one place that shows them and its Sync now asks
+well); a click opens the window. Rule 6 holds: ewe Browser and ewe Safe sync by
+themselves, ewe Sync is the one place that shows them and its Sync now asks
 them to go (the browser watches `~/.local/state/ewe/sync-now`; Safe gets
 `ewe-safe sync`).
 

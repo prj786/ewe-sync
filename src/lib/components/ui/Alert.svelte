@@ -2,10 +2,10 @@
   /**
    * Inline alert (design/system/components/InlineAlert): something on this
    * page needs attention or explanation. tone: info | success | warning |
-   * danger | accent | "" (neutral).
+   * danger | accent | "" (neutral). `icon` replaces the tone's glyph.
    */
   import Icon from "./Icon.svelte";
-  let { tone = "info", title = "", dismiss = null, children, actions } = $props();
+  let { tone = "info", title = "", icon = "", dismiss = null, children, actions } = $props();
   const glyph = { info: "info", accent: "info", success: "success", warning: "warning", danger: "alert" };
 </script>
 
@@ -13,7 +13,7 @@
   class="ewe-alert {tone ? `ewe-alert--${tone}` : ''}"
   role={tone === "danger" || tone === "warning" ? "alert" : "status"}
 >
-  <Icon name={glyph[tone] || "info"} />
+  <Icon name={icon || glyph[tone] || "info"} />
   <div class="ewe-alert__body">
     {#if title}<div class="ewe-alert__title">{title}</div>{/if}
     {#if children}<div class="ewe-alert__desc">{@render children()}</div>{/if}

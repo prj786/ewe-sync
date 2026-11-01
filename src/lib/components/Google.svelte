@@ -1,22 +1,24 @@
 <script>
-  // Google — the OPTIONAL extra beside the ewe account (RFC-005): Gmail in the
-  // Control Center and Drive as a folder. Never settings sync; that is the
+  // Google — the OPTIONAL extra beside the ewe account (RFC-005): Gmail in
+  // Quick settings and Drive as a folder. Never settings sync; that is the
   // Nextcloud account's job and only its job.
   //
   // ewe ships NO Google client, on purpose — nothing about the project's owner
-  // lives in the package. So this pane leads with the client file: where it
-  // goes, whether the one you dropped there parses, and how to get one. There
-  // is nothing to connect until that file is valid, and saying so plainly is
-  // most of this pane's work.
+  // lives in the package. So this pane leads with the client file, as two
+  // steps: create one in Google's console, save it where ewe looks (and
+  // whether the one you saved there is usable). There is nothing to connect
+  // until that file is valid, and saying so plainly is most of this pane's
+  // work.
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as api from "../api";
-  import { google, gclient, consentUrl, toast } from "../stores";
+  import { google, gclient, consentUrl, toast, tildePath } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
   import Row from "./ui/Row.svelte";
   import KV from "./ui/KV.svelte";
   import Alert from "./ui/Alert.svelte";
   import Empty from "./ui/Empty.svelte";
+  import IconBtn from "./ui/IconBtn.svelte";
   import Icon from "./ui/Icon.svelte";
 
   let { refresh } = $props();
@@ -25,7 +27,8 @@
   let error = $state("");
 
   const CONSOLE = "https://console.cloud.google.com/apis/credentials";
-  const path = $derived($gclient?.path || "~/.config/ewe/oauth-client.json");
+  const fullPath = $derived($gclient?.path || "~/.config/ewe/oauth-client.json");
+  const path = $derived(tildePath(fullPath));
   const clientState = $derived(
     $gclient?.valid ? "valid" : $gclient?.exists ? "invalid" : "missing"
   );
@@ -61,45 +64,58 @@
     }
     working = false;
   }
+
+  function copyPath() {
+    navigator.clipboard
+      .writeText(fullPath)
+      .then(() => toast("Copied the path", "success"))
+      .catch((e) => toast(String(e), "error"));
+  }
 </script>
 
 <Page
   title="Google"
   desc="Optional: Gmail in Quick settings and Drive as a folder. Settings sync never uses Google."
 >
-  <!-- the client file, first: without it there is nothing to connect -->
-  <Group
-    title="Your OAuth client"
-    desc="ewe ships no Google client of its own. Create an OAuth client of type Desktop app, with the Gmail and Drive APIs enabled, and save its file at the path below. A personal client needs no verification; its consent screen shows a warning you click through once."
-  >
-    <KV k="Client file" v={path} mono />
-    <KV k="Status">
-      {#if clientState === "valid"}
-        <span class="ewe-badge ewe-badge--success"><span class="ewe-badge__label">Found</span></span>
-        <span>A Desktop-app client</span>
-      {:else if clientState === "invalid"}
-        <span class="ewe-badge ewe-badge--warning"><span class="ewe-badge__label">Not usable</span></span>
-        <span>Not a Desktop-app client file</span>
-      {:else}
-        <span class="ewe-badge"><span class="ewe-badge__label">Missing</span></span>
-      {/if}
-    </KV>
-    <div class="ewe-list__divider"></div>
-    <button class="ewe-row ewe-row--interactive row-button" onclick={() => openUrl(CONSOLE)}>
-      <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="globe" /></span>
-      <span class="ewe-row__text">
-        <span class="ewe-row__title">Open the Google Cloud console</span>
-        <span class="ewe-row__desc">Create the client there</span>
-      </span>
-      <span class="ewe-row__trail"><Icon name="external" /></span>
-    </button>
-  </Group>
-
   {#if clientState === "invalid"}
-    <Alert tone="warning" title="The client file has no client_id">
+    <Alert tone="warning" title="This file isn’t a Desktop client">
       Download the client again from the console: pick Desktop app, then “Download JSON”, and save it as it is.
     </Alert>
   {/if}
+
+  <!-- the client file, first: without it there is nothing to connect -->
+  <Group title="Your Google client">
+    <button class="ewe-row ewe-row--interactive row-button" onclick={() => openUrl(CONSOLE)}>
+      <span class="ewe-step" class:is-done={clientState !== "missing"} class:is-current={clientState === "missing"}>
+        <span class="ewe-step__dot">{#if clientState !== "missing"}<Icon name="check" />{:else}1{/if}</span>
+      </span>
+      <span class="ewe-row__text">
+        <span class="ewe-row__title">Create a Desktop client</span>
+        <span class="ewe-row__desc">In the Google Cloud console, with the Gmail and Drive APIs turned on.</span>
+      </span>
+      <span class="ewe-row__trail">Open the console<Icon name="external" /></span>
+    </button>
+    <div class="ewe-list__divider"></div>
+    <div class="ewe-row">
+      <span class="ewe-step" class:is-done={clientState === "valid"} class:is-current={clientState === "invalid"}>
+        <span class="ewe-step__dot">{#if clientState === "valid"}<Icon name="check" />{:else}2{/if}</span>
+      </span>
+      <span class="ewe-row__text">
+        <span class="ewe-row__title">Save its file here</span>
+        <span class="ewe-row__desc ewe-mono path-line" title={fullPath}>{path}</span>
+      </span>
+      <span class="ewe-row__trail">
+        {#if clientState === "valid"}
+          <span class="ewe-badge ewe-badge--success"><span class="ewe-badge__label">Found</span></span>
+        {:else if clientState === "invalid"}
+          <span class="ewe-badge ewe-badge--warning"><span class="ewe-badge__label">Not usable</span></span>
+        {:else}
+          <span class="ewe-badge ewe-badge--warning"><span class="ewe-badge__label">Missing</span></span>
+        {/if}
+        <IconBtn name="copy" title="Copy the path" go={copyPath} />
+      </span>
+    </div>
+  </Group>
 
   <!-- the connection itself -->
   <Group title="Connection">
@@ -108,8 +124,12 @@
         compact
         icon="globe"
         title="Nothing to connect yet"
-        desc="Put your client file in place first."
-      />
+        desc="Save your client file first. ewe looks for it at the path above."
+      >
+        <button class="ewe-btn ewe-btn--secondary ewe-btn--sm" onclick={() => openUrl(CONSOLE)}>
+          Open the Google Cloud console<Icon name="external" />
+        </button>
+      </Empty>
     {:else if $google?.signed_in}
       <Row tall title={$google.profile?.name || "Google"} sub={$google.profile?.email || ""}>
         {#snippet lead()}
@@ -159,10 +179,9 @@
     <Alert tone="danger" title="Couldn’t connect Google" dismiss={() => (error = "")}>{error}</Alert>
   {/if}
 
-  {#if $google?.signed_in && clientState === "valid"}
-    <p class="note">
-      Settings sync never uses Google: that is your Nextcloud account. An IMAP account, when one is set up, takes
-      precedence over Gmail in Quick settings.
-    </p>
-  {/if}
+  <p class="note">
+    ewe ships no Google client of its own: you make one for yourself. A personal client needs no review; Google shows a
+    warning once that you click through.{#if $google?.signed_in && clientState === "valid"}
+      A mail account set up on the Mail page comes before Gmail in Quick settings.{/if}
+  </p>
 </Page>

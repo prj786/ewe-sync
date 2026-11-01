@@ -12,10 +12,10 @@ pkgname=ewe-sync
 # extracts to <repo>-<tag without the leading v>, so the source URL and
 # the directory below follow _tag, never pkgver. The release workflow
 # rewrites both.
-_tag=v0.15.1-beta
-pkgver=0.15.1beta
+_tag=v0.16.0-beta
+pkgver=0.16.0beta
 pkgrel=1
-pkgdesc="ewe-sync — your ewe account: the one file, your machines, your folders"
+pkgdesc="ewe Sync — your ewe account: settings, folders and computers in your own Nextcloud"
 arch=('x86_64' 'aarch64')
 url="https://github.com/prj786/ewe-sync"
 license=('MIT')
@@ -78,4 +78,7 @@ package() {
     "$pkgdir/usr/lib/systemd/user/ewe-sync.service"
 
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # the bundled faces (compiled into the binary's frontend): Geist is OFL
+  install -Dm644 src/assets/GEIST-LICENSE "$pkgdir/usr/share/licenses/$pkgname/GEIST-LICENSE"
+  install -Dm644 src/assets/LUCIDE-LICENSE "$pkgdir/usr/share/licenses/$pkgname/LUCIDE-LICENSE"
 }

@@ -7,7 +7,7 @@
   import * as api from "./lib/api";
   import {
     route, cloud, sync, busy, loginUrl, folders, trayState, toast, mail, google, gclient, consentUrl,
-    browser, safe, pendingAdd
+    browser, safe, pendingAdd, avatar
   } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Overview from "./lib/components/Overview.svelte";
@@ -30,13 +30,15 @@
   };
 
   // the sections (Side navigation); Ctrl+1 … Ctrl+7 jump to them. What the
-  // account keeps comes first (Overview, Folders, Settings & apps, Machines);
-  // the account itself and the other accounts after.
+  // account keeps comes first (Overview, Folders, Settings & apps,
+  // Computers); the account itself and the other accounts after. The ids are
+  // `ewe-sync --pane <id>` (public: the shell and ewe Settings open them), so
+  // they never change with the labels — "machines" is the Computers page.
   const NAV = [
-    { id: "overview", label: "Overview", icon: "cloud" },
-    { id: "folders", label: "Folders", icon: "folderSync" },
-    { id: "machine", label: "Settings & apps", icon: "settings" },
-    { id: "machines", label: "Machines", icon: "machines" },
+    { id: "overview", label: "Overview", icon: "home" },
+    { id: "folders", label: "Folders", icon: "folder" },
+    { id: "machine", label: "Settings & apps", icon: "sliders" },
+    { id: "machines", label: "Computers", icon: "laptop" },
     { id: "account", label: "Account", icon: "user" },
     { id: "mail", label: "Mail", icon: "mail" },
     { id: "google", label: "Google", icon: "globe" }
@@ -90,7 +92,7 @@
   }
 
   // Sync now means everything: settings & apps (pull, merge, push), every
-  // folder, the browser and Safe (overview.rs sync_everything)
+  // folder, ewe Browser and ewe Safe (overview.rs sync_everything)
   async function syncNow() {
     if (get(busy)) return;
     busy.set("sync");
@@ -98,14 +100,14 @@
       const r = await api.syncEverything();
       if (r.ok) toast(r.changed?.length ? "Synced. Changes from your other computers are here." : "Everything is up to date", "success");
       else if (r.error === "remote-newer" || r.error === "remote-exists") {
-        // the decision (Restore… / Push anyway) lives on This machine
+        // the decision (whose settings to keep) lives on Settings & apps
         route.set("machine");
         toast(
           r.error === "remote-exists"
-            ? "A backup already exists. Restore it, or push anyway."
+            ? "Your account already has settings. Choose which ones this computer keeps."
             : r.remote_is_this_machine
-              ? "The copy in your account isn’t the one this computer last synced. Restore it, or push anyway."
-              : "Another machine saved newer settings. Restore them, or push anyway.",
+              ? "Your account has a different copy of these settings. Choose which one to keep."
+              : "Two computers changed your settings. Choose which ones to keep.",
           "warning"
         );
       } else toast(r.message || r.error || "Couldn’t sync. Try again.", "danger");
@@ -130,20 +132,23 @@
   }
 
   const ROUTES = ["overview", "account", "mail", "google", "machine", "machines", "folders"];
+  // the pages' names since 0.16, accepted beside the ids
+  const ALIAS = { computers: "machines", settings: "machine" };
+  const toRoute = (id) => (ROUTES.includes(id) ? id : ALIAS[id] || "");
 
-  // `ewe-sync --pane <id>` / `--add-folder <path>` (the shell, Settings, the
-  // file manager's "Keep in your account…")
+  // `ewe-sync --pane <id>` / `--add-folder <path>` (the shell, ewe Settings,
+  // the file manager's "Keep in your account…")
   function openLink(l) {
     if (!l) return;
     if (l.add_folder) pendingAdd.set(String(l.add_folder));
-    if (l.pane && ROUTES.includes(l.pane)) route.set(l.pane);
+    if (l.pane && toRoute(l.pane)) route.set(toRoute(l.pane));
   }
   onMount(() => {
     const unlisteners = [];
     // #overview / #account / #mail / #google / #machine / #machines / #folders
     // open a pane directly (the dev mock; inside Tauri the --pane flag)
-    const h = location.hash.replace(/^#/, "");
-    if (ROUTES.includes(h)) route.set(h);
+    const h = toRoute(location.hash.replace(/^#/, ""));
+    if (h) route.set(h);
     unlisteners.push(route.subscribe((r) => {
       if (ROUTES.includes(r) && location.hash !== "#" + r) history.replaceState(null, "", "#" + r);
     }));
@@ -177,11 +182,26 @@
     return () => unlisteners.forEach((u) => u && u());
   });
 
-  // the tray follows the state machine in stores.js
+  // the bar's sync indicator follows the state machine in stores.js
   $effect(() => {
     const c = $cloud;
-    const tip = c?.signed_in ? `ewe-sync — ${c.display_name || c.user}` : "ewe-sync — not signed in";
+    const tip = c?.signed_in ? `ewe Sync — ${c.display_name || c.user}` : "ewe Sync — not signed in";
     api.trayState($trayState, tip).catch(() => {});
+  });
+  // the account's picture, once per sign-in (the rail, Overview, Account);
+  // a server without one is asked once, not on every refresh
+  let avatarAsked = false;
+  $effect(() => {
+    if (!$cloud?.signed_in) {
+      avatarAsked = false;
+      if ($avatar) avatar.set("");
+      return;
+    }
+    if ($avatar || avatarAsked) return;
+    avatarAsked = true;
+    api.cloudAvatar().then((a) => {
+      if (a?.ok && a.path) avatar.set(api.fileSrc(a.path));
+    }).catch(() => {});
   });
   $effect(() => {
     const s = $sync;

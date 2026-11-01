@@ -34,6 +34,8 @@ export const preview = writable(null);
  *  "Keep in your account…"), waiting for the Folders pane's add form */
 export const pendingAdd = writable("");
 export const online = writable(true);
+/** the account's picture (an <img> src), "" until loaded or signed out */
+export const avatar = writable("");
 
 export const signedIn = derived(cloud, ($c) => !!($c && $c.signed_in));
 
@@ -83,13 +85,171 @@ export function dismissToast(id) {
   currentToast.update((t) => (t && (id == null || t.id === id) ? null : t));
 }
 
-/** ISO/epoch → "2 Sep, 15:04" (local), "" when unknown */
-export function fmtTime(v) {
+/**
+ * ISO / epoch seconds / epoch ms → a relative time for recent things, then
+ * the date (Writing guide, "Numbers, units and time"): "now", "2 min ago",
+ * "3 h ago", "yesterday", "29 Oct" ("29 Oct 2025" in another year). ""
+ * when unknown. Lower case: it sits inside sentences ("Up to date · now").
+ */
+export function fmtTime(v, now = Date.now()) {
   if (!v) return "";
-  const d = typeof v === "number" ? new Date(v * 1000) : new Date(v);
+  const d = typeof v === "number" ? new Date(v < 1e12 ? v * 1000 : v) : new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const mins = Math.round((now - d.getTime()) / 60000);
+  if (mins < 1) return "now"; // a clock a little ahead counts as now too
+  if (mins < 60) return `${mins} min ago`;
+  const today = new Date(now);
+  const same = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const hours = Math.round(mins / 60);
+  if (same(d, today) || hours < 6) return `${hours} h ago`;
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (same(d, yesterday)) return "yesterday";
+  const opts = { day: "numeric", month: "short" };
+  if (d.getFullYear() !== today.getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString(undefined, opts);
 }
+
+// ── plain words for what the engines say ─────────────────────────────────────
+
+/**
+ * A folder's last error (the engine's stderr tail, or ewe Sync's own
+ * sentence) → { reason, hint, kind } in plain words (Writing guide: "Error
+ * codes and technical details go in a details section or the log, never in
+ * the headline"). `reason` follows "Couldn’t sync Documents: …"; the raw
+ * text stays available behind Details.
+ */
+export function folderError(raw) {
+  const s = String(raw || "");
+  const l = s.toLowerCase();
+  const has = (...w) => w.some((x) => l.includes(x));
+  if (has("insufficient storage", "quota", " 507", "(507", "not enough space in your account"))
+    return { kind: "full", reason: "your account is full", hint: "Make room in your account, then try again." };
+  if (has("no space left on device"))
+    return { kind: "disk", reason: "this computer’s disk is full", hint: "Free up some space here, then try again." };
+  if (has("401", "unauthorized", "authentication", "wrong password", "app password", "not signed in"))
+    return { kind: "signin", reason: "your account needs you to sign in again", hint: "Sign in on the Account page, then try again." };
+  if (has("the nextcloud app is syncing", "nextcloud app already syncs"))
+    return { kind: "app", reason: "the Nextcloud app syncs it too", hint: "Two sync apps on one folder get in each other’s way. Let ewe Sync take it over, or quit the Nextcloud app." };
+  if (has("can’t sync into itself", "can't sync into itself"))
+    return { kind: "mount", reason: "it’s inside your whole account", hint: "Pick a folder outside it, or change this one." };
+  if (has("is not installed", "not found in path", "command not found"))
+    return { kind: "tool", reason: "a sync tool is missing", hint: "Install it with Komble, then try again. Details name it." };
+  if (has("host not found", "connection refused", "network is unreachable", "network unreachable", "timed out", "temporary failure in name resolution", "could not resolve", "no route to host", "can’t be reached"))
+    return { kind: "offline", reason: "your server didn’t answer", hint: "It syncs again when the server answers." };
+  if (has("permission denied", "operation not permitted", "read-only file system"))
+    return { kind: "permission", reason: "some files can’t be read or written here", hint: "Check who owns the folder, then try again. Details name the file." };
+  if (has("not found", "404", "doesn’t exist", "does not exist", "isn’t in your account"))
+    return { kind: "missing", reason: "the folder isn’t there any more", hint: "Change the folder, or stop syncing it." };
+  return { kind: "other", reason: "the sync stopped with an error", hint: "Try again. If it keeps failing, Details has what the sync engine said." };
+}
+
+/**
+ * A settings-sync error (`ewe-conf sync-status` / push: "no-provider", or a
+ * transport error) → { reason, hint } in plain words, like folderError.
+ */
+export function settingsError(raw) {
+  const s = String(raw || "");
+  if (s === "no-provider")
+    return { reason: "this computer isn’t connected to your account yet", hint: "Sign out and sign in again on the Account page to connect it." };
+  const f = folderError(s);
+  if (f.kind !== "other" && f.kind !== "missing") return { reason: f.reason, hint: f.hint };
+  return { reason: "the last try failed", hint: "Try again. If it keeps failing, Details has what the server said." };
+}
+
+/**
+ * A conflict copy the Nextcloud engine left ("notes/plan (conflicted copy
+ * 2026-10-31 153000).md", or the older "plan_conflict-20261031-153000.md")
+ * → { file: "plan.md", dir: "notes", when: Date|null }. The copy is this
+ * computer's version; the original name holds the account's.
+ */
+export function conflictInfo(path) {
+  const p = String(path || "");
+  const slash = p.lastIndexOf("/");
+  const dir = slash >= 0 ? p.slice(0, slash) : "";
+  const name = slash >= 0 ? p.slice(slash + 1) : p;
+  let m = name.match(/^(.*) \(conflicted copy (\d{4})-(\d{2})-(\d{2}) (\d{2})(\d{2})(\d{2})[^)]*\)(.*)$/);
+  if (m) return { file: m[1] + m[8], dir, when: new Date(+m[2], +m[3] - 1, +m[4], +m[5], +m[6], +m[7]) };
+  m = name.match(/^(.*)_conflict-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(.*)$/);
+  if (m) return { file: m[1] + m[8], dir, when: new Date(+m[2], +m[3] - 1, +m[4], +m[5], +m[6], +m[7]) };
+  return { file: name, dir, when: null };
+}
+
+/** the opening of a raw message: one line, for a place that has room for one */
+export function firstLine(raw) {
+  return String(raw || "").split("\n").map((s) => s.trim()).filter(Boolean)[0] || "";
+}
+
+// ── one place for problems ───────────────────────────────────────────────────
+
+/**
+ * Everything that needs the person, as one list: Overview's "Needs you"
+ * alerts, the count on each nav item and the state line under the name in
+ * the rail are all this. Offline is a state, not a task: it shows in the
+ * rail and on Overview but is not counted. Each item names the pane that
+ * resolves it (`route`).
+ *   { kind: "conflict", route: "folders", key, name, files }
+ *   { kind: "error",    route: "folders", key, name, raw }
+ *   { kind: "settings", route: "machine", conflict, machine, mine, when }
+ *   { kind: "settings-error", route: "machine", raw }
+ *   { kind: "browser",  route: "overview", raw }
+ */
+export const attention = derived([cloud, sync, folders, browser], ([$c, $s, $f, $b]) => {
+  const out = [];
+  if (!$c?.signed_in) return out;
+  for (const p of $f?.pairs || []) {
+    if (p.conflicts?.length) out.push({ kind: "conflict", route: "folders", key: p.key, name: p.name, files: p.conflicts });
+    else if (p.state === "error") out.push({ kind: "error", route: "folders", key: p.key, name: p.name, raw: p.last_error });
+  }
+  const sc = conflictOf($s);
+  if (sc)
+    out.push({
+      kind: "settings", route: "machine", conflict: sc, machine: $s.remote_machine || "",
+      mine: $s.remote_is_this_machine ?? null, when: $s.remote_modified || ""
+    });
+  else if ($s?.error && $s.error !== "nothing-synced" && $s.error !== "not-signed-in" && !$c.offline)
+    out.push({ kind: "settings-error", route: "machine", raw: $s.error });
+  if ($b?.installed && $b.on && $b.state === "error") out.push({ kind: "browser", route: "overview", raw: $b.error || "" });
+  return out;
+});
+
+/** per nav item: { count, tone } — tone danger when anything there failed */
+export const navCounts = derived(attention, ($a) => {
+  const n = {};
+  for (const it of $a) {
+    if (it.route === "overview") continue;
+    const e = (n[it.route] ||= { count: 0, tone: "warning" });
+    e.count++;
+    if (it.kind === "error" || it.kind === "settings-error") e.tone = "danger";
+  }
+  return n;
+});
+
+/**
+ * The rail's state line under your name, with its tone:
+ * { word, tone: "muted" | "warning" | "danger", dot: "" | "away" | "busy" | "offline" }
+ */
+export const statusLine = derived([cloud, busy, folders, attention], ([$c, $b, $f, $a]) => {
+  if (!$c?.signed_in) return { word: "Not signed in", tone: "muted", dot: "offline" };
+  if ($c.offline) return { word: "Offline", tone: "muted", dot: "offline" };
+  if ($a.length) {
+    const decide = $a.every((i) => i.kind === "conflict" || i.kind === "settings");
+    const failed = $a.every((i) => i.kind !== "conflict" && i.kind !== "settings");
+    const n = $a.length;
+    const word = decide
+      ? `${n} need${n === 1 ? "s" : ""} a decision`
+      : failed
+        ? `${n === 1 ? "1 thing" : `${n} things`} couldn’t sync`
+        : `${n} things need you`;
+    return { word, tone: failed ? "danger" : "warning", dot: failed ? "busy" : "away" };
+  }
+  if ($b === "sync" || $b === "restore" || $f?.syncing || ($f?.pairs || []).some((p) => p.running))
+    return { word: "Syncing…", tone: "muted", dot: "" };
+  return { word: "Up to date", tone: "muted", dot: "" };
+});
+
+/** Overview → Folders: the folder whose conflict or error to bring into view */
+export const focusFolder = writable("");
 
 /** "~/Documents" for a path in the home folder (the snapshot's paths are absolute) */
 export function tildePath(p, home = "") {
