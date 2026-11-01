@@ -246,19 +246,6 @@ fn id_from(mid: &str) -> String {
     d.iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
-#[cfg(test)]
-mod machine_id_tests {
-    // the vector ewe-remote computes in Python:
-    // hashlib.sha256(b"ewe:" + mid).hexdigest()[:16]
-    #[test]
-    fn same_id_as_ewe_remote() {
-        assert_eq!(
-            super::id_from("0123456789abcdef0123456789abcdef"),
-            "d019c617096def78"
-        );
-    }
-}
-
 pub fn hostname() -> String {
     std::fs::read_to_string("/etc/hostname")
         .map(|s| s.trim().to_string())
@@ -281,4 +268,17 @@ pub async fn shell_poke(verb: &str) {
         .stderr(Stdio::null())
         .status()
         .await;
+}
+
+#[cfg(test)]
+mod machine_id_tests {
+    // the vector ewe-remote computes in Python:
+    // hashlib.sha256(b"ewe:" + mid).hexdigest()[:16]
+    #[test]
+    fn same_id_as_ewe_remote() {
+        assert_eq!(
+            super::id_from("0123456789abcdef0123456789abcdef"),
+            "d019c617096def78"
+        );
+    }
 }
