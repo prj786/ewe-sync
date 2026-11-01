@@ -1,27 +1,31 @@
 <script>
-  // Overview — everything the account keeps, on one page (0.15). Signed out
-  // it says what signing in brings; on a new computer whose account holds a
+  // Overview — everything the account keeps, on one page. Signed out it
+  // says what signing in brings; on a new computer whose account holds a
   // backup it offers to bring everything back in one click; on the first
-  // computer it offers the folders worth keeping; and always it lists what
-  // syncs on THIS computer — settings & apps, the browser, passwords,
-  // folders — each with its own switch and state. Nothing else in ewe has a
-  // sync button (rule 6): the browser and Safe sync themselves, this page
-  // shows them and its Sync now asks them to go.
+  // computer it offers the folders worth keeping. Above everything else sits
+  // "Needs you": every open problem (a folder changed in two places, a
+  // folder that couldn't sync, two computers' settings, ewe Browser failing)
+  // as one alert with the action that resolves it — the same list that puts
+  // a count on the nav and the state under your name (stores.js attention).
+  // Then the account and what syncs on THIS computer, one row each. Nothing
+  // else in ewe has a sync button (rule 6): ewe Browser and ewe Safe sync
+  // themselves, this page shows them and its Sync now asks them to go.
   import { onMount } from "svelte";
   import * as api from "../api";
   import {
-    route, cloud, sync, busy, folders, browser, safe, preview, toast, fmtTime, fmtBytes, conflictOf, tildePath
+    route, cloud, sync, busy, folders, browser, safe, preview, avatar, attention, focusFolder, toast,
+    fmtTime, fmtBytes, conflictOf, folderError, conflictInfo, firstLine
   } from "../stores";
   import Page from "./ui/Page.svelte";
   import Group from "./ui/Group.svelte";
   import Row from "./ui/Row.svelte";
   import Toggle from "./ui/Toggle.svelte";
   import Check from "./ui/Check.svelte";
+  import Alert from "./ui/Alert.svelte";
   import Icon from "./ui/Icon.svelte";
 
   let { refresh, syncNow } = $props();
 
-  let avatar = $state("");
   let suggestions = $state([]); // [{ name, local, remote, in_account, remote_size, exclude, size?, picked }]
   let restoreHidden = $state(false);
   let startHidden = $state(false);
@@ -36,6 +40,7 @@
   const firstMachine = $derived(
     signedIn && $sync && !$sync.remote && !pairs.length && !appFolders.length
   );
+  const welcomeShown = $derived(newMachine && !restoreHidden);
 
   function dismissedKey(name) {
     return `ewe-sync.${name}Dismissed`;
@@ -68,20 +73,34 @@
       .catch(() => {});
   });
 
-  $effect(() => {
-    if (signedIn && !avatar) {
-      api.cloudAvatar().then((a) => {
-        if (a?.ok && a.path) avatar = api.fileSrc(a.path);
-      }).catch(() => {});
+  // ── needs you ─────────────────────────────────────────────────────────────
+  // the welcome card already asks the settings question on a new computer
+  const needs = $derived($attention.filter((it) => !(it.kind === "settings" && welcomeShown)));
+
+  function openFolder(key) {
+    focusFolder.set(key);
+    route.set("folders");
+  }
+  async function retry(key, name) {
+    try {
+      const r = await api.foldersRun(key);
+      if (r?.ok) toast(`**${name}** synced`, "success");
+    } catch (e) {
+      toast(`Couldn’t sync **${name}**: ${folderError(e).reason}`, "danger", 8000);
     }
-  });
+    refresh();
+  }
+  function settingsWho(it) {
+    if (it.mine === true) return "this computer";
+    return it.machine || "another computer";
+  }
 
   // ── the rows ──────────────────────────────────────────────────────────────
   const settingsText = $derived.by(() => {
     const s = $sync;
     if (!s) return "Reading…";
-    if (conflict === "remote-exists") return "Your account has a backup from another computer";
-    if (conflict) return "Needs a decision: two computers changed settings";
+    if (conflict === "remote-exists") return "Your account has settings from another computer";
+    if (conflict) return "Needs a decision: two computers changed your settings";
     if (!s.enabled) return "Off on this computer";
     if (!s.local_synced_at) return "Not backed up yet";
     return `Up to date · ${fmtTime(s.local_synced_at)}`;
@@ -89,43 +108,48 @@
 
   const browserText = $derived.by(() => {
     const b = $browser;
-    if (!b) return "Bookmarks, history and open tabs";
-    if (!b.installed) return "ewe browser isn’t installed";
-    if (!b.on) return "Off on this computer";
-    if (b.state === "syncing") return "Syncing…";
-    if (b.state === "error") return b.error || "Couldn’t sync";
-    if (b.last_sync) return `Bookmarks, history and open tabs · ${fmtTime(Math.round(b.last_sync / 1000))}`;
-    return "Bookmarks, history and open tabs · syncs when the browser runs";
+    const what = "Bookmarks, history and open tabs";
+    if (!b) return what;
+    if (!b.installed) return "ewe Browser isn’t installed. Find it in Komble.";
+    if (!b.on) return `${what} · off on this computer`;
+    if (b.state === "syncing") return `${what} · syncing…`;
+    if (b.state === "error") return `${what} · couldn’t sync`;
+    if (b.last_sync) return `${what} · up to date · ${fmtTime(b.last_sync)}`;
+    return `${what} · syncs when ewe Browser runs`;
   });
 
   const safeText = $derived.by(() => {
     const s = $safe;
-    if (!s) return "Your passwords, in Safe";
-    if (!s.installed) return "Safe isn’t installed. Find it in Komble.";
-    if (s.answered === false) return "Safe didn’t answer";
-    if (!s.set_up) return "Set up Safe to keep your passwords in your account";
-    if (s.place === "local") return "Only on this computer. Move them to your account in Safe.";
-    if (s.state === "in-sync") return `In your account · ${fmtTime(s.last)}`;
-    if (s.state) return `In your account · ${String(s.state).replace(/-/g, " ")}`;
-    return "In your account";
+    if (!s) return "Kept by ewe Safe";
+    if (!s.installed) return "ewe Safe isn’t installed. Find it in Komble.";
+    if (s.answered === false) return "ewe Safe didn’t answer";
+    if (!s.set_up) return "Set up ewe Safe to keep your passwords in your account";
+    if (s.place === "local") return "Only on this computer. Move them to your account in ewe Safe.";
+    if (s.state === "in-sync") return `Kept by ewe Safe · up to date${s.last ? ` · ${fmtTime(s.last)}` : ""}`;
+    if (s.state) return `Kept by ewe Safe · ${String(s.state).replace(/-/g, " ")}`;
+    return "Kept by ewe Safe";
   });
 
+  const folderNeeds = $derived($attention.filter((it) => it.route === "folders").length);
   const foldersText = $derived.by(() => {
-    const n = pairs.length + appFolders.length;
-    if (!n) return "None yet. Choose the folders to keep.";
-    const bad = pairs.filter((p) => p.state === "error" || p.state === "conflict").length;
-    const word = `${n} folder${n === 1 ? "" : "s"}`;
-    if (pairs.some((p) => p.running)) return `${word} · syncing…`;
-    if (bad) return `${word} · ${bad} need${bad === 1 ? "s" : ""} attention`;
-    if (appFolders.length && !pairs.length) return `${word} · synced by the Nextcloud app`;
-    if (!$folders?.auto) return `${word} · paused`;
-    return `${word} · up to date`;
+    const names = [...pairs.map((p) => p.name), ...appFolders.map((f) => f.name)];
+    if (!names.length) return "None yet. Choose the folders to keep.";
+    const list = names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ");
+    const conflicts = pairs.filter((p) => p.conflicts?.length).length;
+    const errors = pairs.filter((p) => !p.conflicts?.length && p.state === "error").length;
+    if (conflicts && !errors) return `${list} · ${conflicts} need${conflicts === 1 ? "s" : ""} a decision`;
+    if (errors && !conflicts) return `${list} · ${errors} couldn’t sync`;
+    if (folderNeeds) return `${list} · ${folderNeeds} need you`;
+    if (pairs.some((p) => p.running)) return `${list} · syncing…`;
+    if (appFolders.length && !pairs.length) return `${list} · synced by the Nextcloud app`;
+    if (!$folders?.auto) return `${list} · paused`;
+    return `${list} · up to date`;
   });
 
   async function setConf(key, on, what) {
     try {
       await api.confSet(key, on);
-      toast(`${what} ${on ? "syncs on this computer" : "stays on this computer"}`, "info");
+      toast(`**${what}** ${on ? "syncs on this computer" : "stays on this computer"}`, "info");
     } catch (e) {
       toast(String(e), "error");
     }
@@ -193,10 +217,12 @@
   }
 
   const quotaPct = $derived(Math.max(0, Math.min(100, Math.round($cloud?.quota?.relative ?? 0))));
+  const server = $derived(String($cloud?.server || "").replace(/^https?:\/\//, "").replace(/\/+$/, ""));
 </script>
 
 {#snippet syncAction()}
-  <button class="ewe-btn ewe-btn--primary" disabled={!!$busy} onclick={syncNow}>
+  <!-- busy keeps the accent (aria-busy, not disabled): progress, not "unavailable" -->
+  <button class="ewe-btn ewe-btn--primary" aria-busy={$busy === "sync"} aria-disabled={!!$busy} onclick={syncNow}>
     {#if $busy === "sync"}<span class="ewe-spinner ewe-spinner--sm ewe-spinner--on-accent" aria-hidden="true"></span>Syncing…{:else}<Icon name="refresh" />Sync now{/if}
   </button>
 {/snippet}
@@ -204,7 +230,7 @@
 <Page
   title="Overview"
   desc={signedIn ? "Everything your account keeps, and whether it’s up to date." : "One account for everything that’s yours."}
-  actions={signedIn && !newMachine ? syncAction : undefined}
+  actions={signedIn && !welcomeShown ? syncAction : undefined}
 >
   {#if !signedIn}
     <Group well={false}>
@@ -220,10 +246,10 @@
           </div>
         </div>
         <ul class="promise__list">
-          <li><Icon name="settings" /><span><b>Settings & apps</b> · your look, bar, displays, keyboard and the apps you use</span></li>
-          <li><Icon name="globe" /><span><b>Browser</b> · bookmarks, history and the tabs open on your other computers</span></li>
-          <li><Icon name="lock" /><span><b>Passwords</b> · Safe keeps them encrypted in your account</span></li>
-          <li><Icon name="folderSync" /><span><b>Folders</b> · Documents, Desktop, any folder you choose</span></li>
+          <li><Icon name="sliders" /><span><b>Settings & apps</b> · your look, bar, displays, keyboard and the apps you use</span></li>
+          <li><Icon name="globe" /><span><b>ewe Browser</b> · bookmarks, history and the tabs open on your other computers</span></li>
+          <li><Icon name="lock" /><span><b>Passwords</b> · ewe Safe keeps them encrypted in your account</span></li>
+          <li><Icon name="folder" /><span><b>Folders</b> · Documents, Desktop, any folder you choose</span></li>
         </ul>
         <div class="ewe-card__foot">
           <button class="ewe-btn ewe-btn--primary" onclick={() => route.set("account")}>Sign in</button>
@@ -231,7 +257,80 @@
       </div>
     </Group>
   {:else}
-    {#if newMachine && !restoreHidden}
+    <!-- Needs you: one alert per open problem, each with what resolves it -->
+    {#if needs.length || $cloud.offline}
+      <section class="needs" aria-label="Needs you">
+        {#if needs.length > 1}<h2 class="ewe-section__title ewe-section__title--overline needs__title">Needs you · {needs.length}</h2>{/if}
+        {#if $cloud.offline}
+          <Alert tone="" icon="cloudOff" title="Offline">
+            Your server didn’t answer, so this shows what was known at the last check. Everything syncs again when it
+            answers.
+          </Alert>
+        {/if}
+        {#each needs as it (it.kind + (it.key || ""))}
+          {#if it.kind === "conflict"}
+            {@const c = conflictInfo(it.files[0])}
+            <Alert tone="warning" title={`${it.name} changed in two places`}>
+              {#if it.files.length === 1}
+                {c.file} was edited on this computer and somewhere else. Both copies are kept until you choose one.
+              {:else}
+                {it.files.length} files were edited on this computer and somewhere else. Both copies of each are kept
+                until you choose.
+              {/if}
+              {#snippet actions()}
+                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => openFolder(it.key)}>
+                  {it.files.length === 1 ? "Choose a copy" : "Choose copies"}
+                </button>
+              {/snippet}
+            </Alert>
+          {:else if it.kind === "error"}
+            {@const e = folderError(it.raw)}
+            <Alert tone="danger" title={`Couldn’t sync ${it.name}: ${e.reason}`}>
+              {e.hint}
+              {#snippet actions()}
+                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => retry(it.key, it.name)}>Try again</button>
+                <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" onclick={() => openFolder(it.key)}>See details</button>
+              {/snippet}
+            </Alert>
+          {:else if it.kind === "settings"}
+            <Alert
+              tone="warning"
+              title={it.conflict === "remote-exists" ? "Your account already has settings" : "Two computers changed your settings"}
+            >
+              {#if it.conflict === "remote-exists"}
+                Saved by {settingsWho(it)}{it.when ? ` ${fmtTime(it.when)}` : ""}. Choose which settings this computer
+                keeps; nothing syncs until you do.
+              {:else}
+                {settingsWho(it) === "this computer" ? "This computer" : settingsWho(it)} saved newer settings{it.when
+                  ? ` ${fmtTime(it.when)}`
+                  : ""}. Choose which ones to keep; nothing syncs until you do.
+              {/if}
+              {#snippet actions()}
+                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => route.set("machine")}>Choose settings</button>
+              {/snippet}
+            </Alert>
+          {:else if it.kind === "settings-error"}
+            <Alert tone="danger" title="Your settings didn’t sync">
+              {firstLine(it.raw) || "The last try failed."}
+              {#snippet actions()}
+                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" aria-disabled={!!$busy} onclick={syncNow}>Try again</button>
+                <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" onclick={() => route.set("machine")}>See details</button>
+              {/snippet}
+            </Alert>
+          {:else if it.kind === "browser"}
+            <Alert tone="danger" title="ewe Browser couldn’t sync">
+              {firstLine(it.raw) || "The last try failed."} Its bookmarks, history and tabs stay on this computer until
+              it syncs.
+              {#snippet actions()}
+                <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" aria-disabled={!!$busy} onclick={syncNow}>Try again</button>
+              {/snippet}
+            </Alert>
+          {/if}
+        {/each}
+      </section>
+    {/if}
+
+    {#if welcomeShown}
       <Group well={false}>
         <div class="ewe-card welcome" aria-busy={$busy === "restore"}>
           <div class="ewe-card__head">
@@ -264,10 +363,10 @@
                 </li>
               {/if}
               {#if $preview.browser}
-                <li><Icon name="check" /><span><b>Browser</b> · bookmarks, history and open tabs</span></li>
+                <li><Icon name="check" /><span><b>ewe Browser</b> · bookmarks, history and open tabs</span></li>
               {/if}
               {#if $preview.safe}
-                <li><Icon name="check" /><span><b>Passwords</b> · in Safe, after you unlock it</span></li>
+                <li><Icon name="check" /><span><b>Passwords</b> · in ewe Safe, after you unlock it</span></li>
               {/if}
             </ul>
           {:else}
@@ -275,7 +374,7 @@
           {/if}
           <div class="ewe-card__foot">
             <button class="ewe-btn ewe-btn--ghost" disabled={!!$busy} onclick={notNow}>Not now</button>
-            <button class="ewe-btn ewe-btn--primary" disabled={!!$busy} onclick={bringBack}>
+            <button class="ewe-btn ewe-btn--primary" aria-busy={$busy === "restore"} aria-disabled={!!$busy} onclick={bringBack}>
               {#if $busy === "restore"}<span class="ewe-spinner ewe-spinner--sm ewe-spinner--on-accent" aria-hidden="true"></span>Bringing it back…{:else}Bring everything back{/if}
             </button>
           </div>
@@ -314,7 +413,7 @@
           {/if}
           <div class="ewe-card__foot">
             <button class="ewe-btn ewe-btn--ghost" disabled={!!$busy} onclick={skipStart}>Not now</button>
-            <button class="ewe-btn ewe-btn--primary" disabled={!!$busy} onclick={startSyncing}>
+            <button class="ewe-btn ewe-btn--primary" aria-busy={$busy === "folders"} aria-disabled={!!$busy} onclick={startSyncing}>
               {#if $busy === "folders"}<span class="ewe-spinner ewe-spinner--sm ewe-spinner--on-accent" aria-hidden="true"></span>Starting…{:else}Start syncing{/if}
             </button>
           </div>
@@ -322,80 +421,76 @@
       </Group>
     {/if}
 
-    <Group title="Your account">
-      <Row tall title={$cloud.display_name || $cloud.user} sub={`${$cloud.email || $cloud.user} · ${String($cloud.server || "").replace(/^https?:\/\//, "")}`}>
-        {#snippet lead()}
-          {#if avatar}
-            <img class="ewe-avatar ewe-avatar--lg avatar-img" src={avatar} alt="" />
-          {:else}
-            <span class="ewe-avatar ewe-avatar--lg" aria-hidden="true">
-              {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
-            </span>
-          {/if}
-        {/snippet}
+    <!-- the account: who, where, how much room -->
+    <div class="ewe-list">
+      <div class="ewe-row ewe-row--tall">
+        {#if $avatar}
+          <img class="ewe-avatar acct-avatar avatar-img" src={$avatar} alt="" />
+        {:else}
+          <span class="ewe-avatar acct-avatar" aria-hidden="true">{($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}</span>
+        {/if}
+        <span class="ewe-row__text">
+          <span class="ewe-row__title acct-name">{$cloud.display_name || $cloud.user}</span>
+          <span class="ewe-row__desc">{server} · {$cloud.offline ? "offline" : "signed in"}</span>
+        </span>
         {#if $cloud.quota && $cloud.quota.total > 0}
-          <span class="quota-mini" title={`${fmtBytes($cloud.quota.used)} of ${fmtBytes($cloud.quota.total)} used`}>
-            <span class="ewe-meter__track quota-mini__track {quotaPct >= 95 ? 'is-danger' : quotaPct >= 80 ? 'is-warning' : ''}" role="meter" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow={quotaPct}>
+          <span class="quota-mini">
+            <span class="quota-mini__text"><b>{fmtBytes($cloud.quota.total - $cloud.quota.used)} free</b> of {fmtBytes($cloud.quota.total)}</span>
+            <span
+              class="ewe-meter__track quota-mini__track {quotaPct >= 95 ? 'is-danger' : quotaPct >= 80 ? 'is-warning' : ''}"
+              role="meter"
+              aria-label="Storage used"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={quotaPct}
+            >
               <span class="ewe-meter__fill" style="--value: {quotaPct}%"></span>
             </span>
-            <span class="quota-mini__text">{fmtBytes($cloud.quota.total - $cloud.quota.used)} free</span>
           </span>
         {/if}
-      </Row>
-      {#if $cloud.offline}
-        <Row dense sub="Your server didn’t answer. Everything syncs again when it does." />
-      {/if}
-    </Group>
+      </div>
+    </div>
 
     <Group title="On this computer">
-      <Row icon="settings" title="Settings & apps" sub={settingsText}>
-        {#if conflict && conflict !== "remote-exists"}
-          <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => route.set("machine")}>Decide</button>
-        {/if}
-        <Toggle label="Sync settings and apps" on={!!$sync?.enabled} disabled={!$sync} toggled={(v) => setConf("sync.enabled", v, "Settings & apps")} />
+      <Row icon="sliders" title="Settings & apps" sub={settingsText}>
+        <Toggle label="Keep settings and apps in step" on={!!$sync?.enabled} disabled={!$sync} toggled={(v) => setConf("sync.enabled", v, "Settings & apps")} />
       </Row>
       <div class="ewe-list__divider"></div>
-      <Row icon="globe" title="Browser" sub={browserText}>
+      <Row icon="globe" title="ewe Browser" sub={browserText}>
         <Toggle
-          label="Sync the browser"
+          label="Keep ewe Browser in step"
           on={$browser?.on !== false}
           disabled={!$browser?.installed}
-          toggled={(v) => setConf("sync.browser", v, "The browser")}
+          toggled={(v) => setConf("sync.browser", v, "ewe Browser")}
         />
       </Row>
       <div class="ewe-list__divider"></div>
-      <Row icon="lock" title="Passwords" sub={safeText}>
-        {#if $safe?.installed}
-          <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => api.openSafe().catch((e) => toast(String(e), "error"))}>Open Safe</button>
-        {/if}
-      </Row>
-      <div class="ewe-list__divider"></div>
-      <Row icon="folderSync" title="Folders" sub={foldersText}>
-        <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" onclick={() => route.set("folders")}>
-          {pairs.length + appFolders.length ? "Manage" : "Choose folders"}
+      {#if $safe?.installed}
+        <button class="ewe-row ewe-row--interactive row-button" onclick={() => api.openSafe().catch((e) => toast(String(e), "error"))}>
+          <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="lock" /></span>
+          <span class="ewe-row__text"><span class="ewe-row__title">Passwords</span><span class="ewe-row__desc">{safeText}</span></span>
+          <span class="ewe-row__trail">Open ewe Safe<Icon name="caretRight" /></span>
         </button>
-      </Row>
+      {:else}
+        <Row icon="lock" title="Passwords" sub={safeText} />
+      {/if}
+      <div class="ewe-list__divider"></div>
+      <button class="ewe-row ewe-row--interactive row-button" onclick={() => route.set("folders")}>
+        <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="folder" /></span>
+        <span class="ewe-row__text"><span class="ewe-row__title">Folders</span><span class="ewe-row__desc">{foldersText}</span></span>
+        <span class="ewe-row__trail">
+          {#if folderNeeds}
+            <span class="ewe-badge ewe-badge--{$attention.some((i) => i.route === 'folders' && i.kind === 'error') ? 'danger' : 'warning'}"
+              ><span class="ewe-badge__label">{folderNeeds}</span></span
+            >
+          {:else if !pairs.length && !appFolders.length}
+            Choose folders
+          {/if}
+          <Icon name="caretRight" />
+        </span>
+      </button>
     </Group>
 
-    {#if pairs.length}
-      <Group title="Folders">
-        {#each pairs as it, i (it.key)}
-          {#if i > 0}<div class="ewe-list__divider"></div>{/if}
-          <Row dense title={it.name} sub={tildePath(it.local_effective)}>
-            {#snippet lead()}
-              <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="folder" /></span>
-            {/snippet}
-            <span class="ewe-badge {it.state === 'synced' ? 'ewe-badge--success' : it.state === 'syncing' ? 'ewe-badge--accent' : it.state === 'error' ? 'ewe-badge--danger' : it.state === 'conflict' ? 'ewe-badge--warning' : ''}">
-              <span class="ewe-badge__label">{{ synced: "Up to date", syncing: "Syncing…", paused: "Paused", error: "Couldn’t sync", conflict: "Needs a decision", offline: "Offline", pending: "Waiting" }[it.state] || it.state}</span>
-            </span>
-          </Row>
-        {/each}
-      </Group>
-    {/if}
-
-    <p class="note">
-      Every computer you sign in to gets the same folders, settings and browser. Each one can switch any of them off
-      for itself here.
-    </p>
+    <p class="note">Every computer you sign in to gets the same things. Each one can turn any of them off for itself.</p>
   {/if}
 </Page>

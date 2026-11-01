@@ -1,19 +1,19 @@
 <script>
   // A folder in your account, picked by walking it: a breadcrumb from the
-  // account's top, the folders inside with their sizes, and "Use this
-  // folder". Files are listed greyed so you can tell where you are; only
-  // folders open. New folders need no button — type a new name in the form
-  // and the first sync creates it.
+  // account's top and the folders inside with their sizes. It is the second
+  // step of the folder sheet: `path`, `loading` and `free` bind up to the
+  // sheet, whose footer holds "Use “Work”" (and whose back arrow is the way
+  // out — one Cancel, not two). Files are listed greyed so you can tell
+  // where you are; only folders open. New folders need no button — type a
+  // new name in the form and the first sync creates it.
   import * as api from "../api";
   import { fmtBytes } from "../stores";
   import Icon from "./ui/Icon.svelte";
 
-  let { start = "", onPick = () => {}, onClose = () => {} } = $props();
+  let { start = "", path = $bindable(""), loading = $bindable(false), free = $bindable(null) } = $props();
 
-  let path = $state("");
   let listing = $state(null); // { path, size, free, items: [{ name, path, dir, size }] }
   let error = $state("");
-  let loading = $state(false);
 
   async function go(p) {
     loading = true;
@@ -21,6 +21,7 @@
     try {
       listing = await api.remoteList(p);
       path = listing.path || "";
+      if (listing.free != null) free = listing.free;
     } catch (e) {
       error = String(e);
       // a folder that is not there yet: show its parent
@@ -32,8 +33,10 @@
       loading = false;
     }
   }
-  $effect(() => {
-    go(String(start || "").replace(/^\/+|\/+$/g, ""));
+  // once, from where the form points (not again as `path` moves)
+  $effect.pre(() => {
+    const from = String(start || "").replace(/^\/+|\/+$/g, "");
+    queueMicrotask(() => go(from));
   });
 
   const crumbs = $derived(path ? path.split("/") : []);
@@ -71,7 +74,7 @@
     {/each}
     {#each files.slice(0, 6) as f (f.path)}
       <div class="ewe-row ewe-row--dense is-dim">
-        <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="inbox" /></span>
+        <span class="ewe-row__lead ewe-row__lead--tile"><Icon name="fileText" /></span>
         <span class="ewe-row__text"><span class="ewe-row__title">{f.name}</span></span>
         <span class="ewe-row__trail picker__size">{fmtBytes(f.size)}</span>
       </div>
@@ -82,15 +85,5 @@
     {#if listing && !dirs.length && !files.length}
       <div class="ewe-row ewe-row--dense is-dim"><span class="ewe-row__text"><span class="ewe-row__desc">This folder is empty.</span></span></div>
     {/if}
-  </div>
-  <div class="picker__foot">
-    {#if listing?.free != null && listing.free >= 0 && !path}
-      <span class="picker__free">{fmtBytes(listing.free)} free in your account</span>
-    {/if}
-    <span class="picker__spacer"></span>
-    <button class="ewe-btn ewe-btn--sm ewe-btn--ghost" onclick={onClose}>Cancel</button>
-    <button class="ewe-btn ewe-btn--sm ewe-btn--primary" disabled={loading} onclick={() => onPick(path)}>
-      Use {path ? `“${crumbs[crumbs.length - 1]}”` : "the whole account"}
-    </button>
   </div>
 </div>
