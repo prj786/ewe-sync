@@ -1928,14 +1928,20 @@ mod tests {
         })
         .unwrap();
         w.watch(&dir, RecursiveMode::NonRecursive).unwrap();
-        let settle = Duration::from_secs(2);
+        // a write reports its own open first, so wait for the events to stop
+        let events = || {
+            let mut got: Vec<_> = rx
+                .recv_timeout(Duration::from_secs(5))
+                .into_iter()
+                .collect();
+            while let Ok(kind) = rx.recv_timeout(Duration::from_millis(200)) {
+                got.push(kind);
+            }
+            got
+        };
 
         std::fs::read_to_string(&file).unwrap();
-        let read: Vec<_> = rx
-            .recv_timeout(settle)
-            .into_iter()
-            .chain(rx.try_iter())
-            .collect();
+        let read = events();
         assert!(!read.is_empty(), "the watcher should report the open");
         assert!(
             !read.iter().any(is_real_change),
@@ -1943,11 +1949,7 @@ mod tests {
         );
 
         std::fs::write(&file, "a = 2\n").unwrap();
-        let written: Vec<_> = rx
-            .recv_timeout(settle)
-            .into_iter()
-            .chain(rx.try_iter())
-            .collect();
+        let written = events();
         assert!(
             written.iter().any(is_real_change),
             "writing didn't: {written:?}"
