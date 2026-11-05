@@ -425,6 +425,15 @@ fn inside(root: &Path, rel: &str) -> Result<PathBuf, String> {
     Ok(parent_c.join(p.file_name().ok_or("bad path")?))
 }
 
+/// notify also reports a file being merely opened. Reading is not a change:
+/// `watch_conf` runs `ewe-conf get`, which opens ewe.conf, which woke
+/// `watch_conf` again, every 2 seconds, forever.
+fn is_real_change(kind: &notify::EventKind) -> bool {
+    use notify::event::{AccessKind, AccessMode};
+    use notify::EventKind::Access;
+    !matches!(kind, Access(a) if !matches!(a, AccessKind::Close(AccessMode::Write)))
+}
+
 /// The engine's own bookkeeping churns during a run — not a change.
 fn engine_noise(p: &Path) -> bool {
     p.file_name()
@@ -820,6 +829,8 @@ impl Runner {
             loop {
                 tokio::time::sleep(poll_every()).await;
                 me.poll_remote().await;
+                // what no event announces: the Nextcloud app starting or quitting
+                me.emit().await;
             }
         });
         self.reload(true).await;
@@ -921,7 +932,7 @@ impl Runner {
                         Some("ewe.conf") | Some("cloud.json")
                     )
                 });
-                if ours {
+                if ours && is_real_change(&ev.kind) {
                     let _ = tx.try_send(());
                 }
             }
@@ -968,7 +979,7 @@ impl Runner {
         let (tx, mut rx) = mpsc::channel::<()>(64);
         let watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             if let Ok(ev) = res {
-                if !ev.paths.iter().all(|p| engine_noise(p)) {
+                if is_real_change(&ev.kind) && !ev.paths.iter().all(|p| engine_noise(p)) {
                     let _ = tx.try_send(());
                 }
             }
@@ -1898,6 +1909,51 @@ mod tests {
         assert_eq!(e, "mounted");
         assert!(check_layout(&l(&["/home/u/Documents"]), h, &blocked).is_ok());
         assert!(check_layout(&l(&["relative/path"]), h, &[]).is_err());
+    }
+
+    /// The real kernel events, not a hand-made list: reading a watched file
+    /// is what kept `watch_conf` waking itself up.
+    #[test]
+    fn reading_a_watched_file_is_not_a_change() {
+        let dir = std::env::temp_dir().join(format!("ewe-sync-watch-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("ewe.conf");
+        std::fs::write(&file, "a = 1\n").unwrap();
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut w = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+            if let Ok(ev) = res {
+                let _ = tx.send(ev.kind);
+            }
+        })
+        .unwrap();
+        w.watch(&dir, RecursiveMode::NonRecursive).unwrap();
+        let settle = Duration::from_secs(2);
+
+        std::fs::read_to_string(&file).unwrap();
+        let read: Vec<_> = rx
+            .recv_timeout(settle)
+            .into_iter()
+            .chain(rx.try_iter())
+            .collect();
+        assert!(!read.is_empty(), "the watcher should report the open");
+        assert!(
+            !read.iter().any(is_real_change),
+            "reading counted: {read:?}"
+        );
+
+        std::fs::write(&file, "a = 2\n").unwrap();
+        let written: Vec<_> = rx
+            .recv_timeout(settle)
+            .into_iter()
+            .chain(rx.try_iter())
+            .collect();
+        assert!(
+            written.iter().any(is_real_change),
+            "writing didn't: {written:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
