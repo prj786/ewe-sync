@@ -1,4 +1,5 @@
 import { invoke as tauriInvoke, convertFileSrc } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 // Outside Tauri (a plain browser with `?mock=1`) src/lib/devmock.js answers.
 const invoke = (cmd, args) =>
@@ -7,6 +8,9 @@ const invoke = (cmd, args) =>
 export const fileSrc = (p) => (window.__EWE_SYNC_MOCK__ || String(p).startsWith("data:") ? p : convertFileSrc(p));
 
 export const dePrefs = () => invoke("de_prefs");
+/** is the window on screen? `ewe-sync --hidden` keeps it unshown all session */
+export const windowShown = () =>
+  window.__EWE_SYNC_MOCK__ ? Promise.resolve(true) : getCurrentWindow().isVisible();
 /** the generated look, from ewe-theme.conf — see applyDePrefs in App.svelte */
 export const themeTokens = (theme) => invoke("theme_tokens", { theme });
 

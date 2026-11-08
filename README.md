@@ -126,6 +126,9 @@ no pacman bundler). `options=(!lto)` and `npm run tauri build -- --no-bundle`
 are load-bearing — see Komble's PKGBUILD for why.
 
 `ewe-sync --hidden` starts without a window (the autostart unit does this);
+while the window is not on screen it reads only what the bar's sync glyph
+needs (the account and the one file, every 2 minutes — folders report by
+event), and everything else the moment it is shown (0.16.2);
 `ewe-sync --pane <overview|folders|machine|machines|account|mail|google>`
 opens the window on a pane; `ewe-sync --add-folder <path>` opens Folders with
 that folder ready to add (ewe browser's "Keep in your account…"); both reach

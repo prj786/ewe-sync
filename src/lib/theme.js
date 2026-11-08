@@ -51,9 +51,11 @@ export async function refreshTheme() {
  * `pollKey` is given — whenever the cheap key it returns changes (checked
  * every `every` ms). ewe-sync polls the DE's user-theme.json this way, so a
  * scheme, accent, preset or accessibility change made in Settings reaches an
- * open ewe-sync window without a click into it.
+ * open ewe-sync window without a click into it. `active()`, when given, is
+ * asked first: false skips the tick (the window is hidden — it repaints on
+ * focus anyway), so a hidden window does not wake every 4 s for nothing.
  */
-export function watchTheme(pollKey = null, every = 4000) {
+export function watchTheme(pollKey = null, every = 4000, active = null) {
   refreshTheme();
   const onFocus = () => refreshTheme();
   window.addEventListener("focus", onFocus);
@@ -61,6 +63,10 @@ export function watchTheme(pollKey = null, every = 4000) {
   if (pollKey) {
     let last = null;
     const tick = async () => {
+      if (active && !active()) {
+        last = null;
+        return;
+      }
       let k;
       try {
         k = String(await pollKey());
