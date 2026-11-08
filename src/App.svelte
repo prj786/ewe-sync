@@ -53,8 +53,33 @@
     }
   }
 
-  /** the account + the one file, in one round */
-  export async function refresh() {
+  // Is the window on screen? `ewe-sync --hidden` (the login unit) keeps it
+  // unshown all session, and until 0.16.2 the page polled as if someone were
+  // reading it: a full round every 30 s (ewe-cloud, ewe-conf, ewe-mail,
+  // ewe-auth — python each — plus ~3 HTTPS requests) and the theme key every
+  // 4 s. Hidden, only what the bar's sync glyph needs (trayState: the account
+  // and the one file; folders arrive as events) is read, every 2 minutes.
+  let shown = true;
+  async function checkShown() {
+    try {
+      shown = await api.windowShown();
+    } catch {
+      shown = true;
+    }
+    return shown;
+  }
+  const HIDDEN_EVERY = 120000;
+  let lastQuiet = 0;
+  async function tick() {
+    if (await checkShown()) return refresh();
+    if (Date.now() - lastQuiet < HIDDEN_EVERY) return;
+    lastQuiet = Date.now();
+    return refresh(false);
+  }
+
+  /** the account + the one file, in one round; `full = false` reads only
+   *  what the bar's glyph needs (the window is hidden) */
+  export async function refresh(full = true) {
     try {
       cloud.set(await api.cloudStatus());
     } catch (e) {
@@ -67,11 +92,14 @@
         sync.set({ ok: false, error: String(e) });
       }
       // what else the account carries: the browser and Safe report their own
-      api.browserStatus().then((b) => browser.set(b)).catch(() => browser.set(null));
-      api.safeStatus().then((s) => safe.set(s)).catch(() => safe.set(null));
+      if (full) {
+        api.browserStatus().then((b) => browser.set(b)).catch(() => browser.set(null));
+        api.safeStatus().then((s) => safe.set(s)).catch(() => safe.set(null));
+      }
     } else {
       sync.set(null);
     }
+    if (!full) return;
     // the other accounts (RFC-005): each answers with one JSON object and
     // never throws for "not configured", so a missing tool is the only catch
     try {
@@ -153,13 +181,24 @@
       if (ROUTES.includes(r) && location.hash !== "#" + r) history.replaceState(null, "", "#" + r);
     }));
     (async () => {
-      unlisteners.push(watchTheme(themeKey));
+      await checkShown();
+      unlisteners.push(watchTheme(themeKey, 4000, () => shown));
 
-      await refresh();
-      const timer = setInterval(refresh, 30000);
+      await refresh(shown);
+      if (!shown) lastQuiet = Date.now();
+      const timer = setInterval(tick, 30000);
       unlisteners.push(() => clearInterval(timer));
-      window.addEventListener("focus", refresh);
-      unlisteners.push(() => window.removeEventListener("focus", refresh));
+      // shown again (the bar, a second launch): read everything at once
+      const onFocus = () => {
+        shown = true;
+        refresh();
+      };
+      // hidden (close hides): the next blur is when it happens
+      const onBlur = () => setTimeout(checkShown, 1000);
+      window.addEventListener("focus", onFocus);
+      window.addEventListener("blur", onBlur);
+      unlisteners.push(() => window.removeEventListener("focus", onFocus));
+      unlisteners.push(() => window.removeEventListener("blur", onBlur));
 
       unlisteners.push(await listen("deep-link", (e) => openLink(e.payload)));
       api.takeDeepLink().then(openLink).catch(() => {});
