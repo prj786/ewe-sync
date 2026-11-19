@@ -1,5 +1,4 @@
 import { invoke as tauriInvoke, convertFileSrc } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 // Outside Tauri (a plain browser with `?mock=1`) src/lib/devmock.js answers.
 const invoke = (cmd, args) =>
@@ -8,15 +7,14 @@ const invoke = (cmd, args) =>
 export const fileSrc = (p) => (window.__EWE_SYNC_MOCK__ || String(p).startsWith("data:") ? p : convertFileSrc(p));
 
 export const dePrefs = () => invoke("de_prefs");
-/** is the window on screen? `ewe-sync --hidden` keeps it unshown all session */
-export const windowShown = () =>
-  window.__EWE_SYNC_MOCK__ ? Promise.resolve(true) : getCurrentWindow().isVisible();
 /** the generated look, from ewe-theme.conf — see applyDePrefs in App.svelte */
 export const themeTokens = (theme) => invoke("theme_tokens", { theme });
 
 // account (ewe-cloud)
 export const cloudStatus = () => invoke("cloud_status");
-export const cloudLogin = (server) => invoke("cloud_login", { server });
+// no user/password = the browser flow; with both, the password goes to ewe-cloud on stdin
+export const cloudLogin = (server, user, password) =>
+  invoke("cloud_login", user && password ? { server, user, password } : { server });
 export const cloudLogout = () => invoke("cloud_logout");
 export const cloudAvatar = () => invoke("cloud_avatar");
 export const keyringReset = () => invoke("keyring_reset");
@@ -72,7 +70,3 @@ export const restorePreview = () => invoke("restore_preview");
 export const restoreEverything = () => invoke("restore_everything");
 export const afterSignIn = () => invoke("after_sign_in");
 export const afterSignOut = () => invoke("after_sign_out");
-
-// tray
-export const trayState = (state, tooltip) => invoke("tray_state", { state, tooltip: tooltip || null });
-export const trayPauseLabel = (paused) => invoke("tray_pause_label", { paused });

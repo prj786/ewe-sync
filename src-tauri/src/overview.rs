@@ -60,8 +60,15 @@ pub fn parse_deep_link(args: &[String]) -> Option<Value> {
     }))
 }
 
+/// Hand a link to the page: stored for `take_deep_link`, and the page is
+/// told to come and get it. Stored first because there may be no page yet
+/// (the window is built on demand — tray.rs — and its page mounts a moment
+/// later); an open page takes it at once, a fresh one on mount, never both.
 pub fn deliver(app: &AppHandle, link: Value) {
-    let _ = app.emit("deep-link", link);
+    if let Ok(mut g) = app.state::<DeepLink>().0.lock() {
+        *g = Some(link);
+    }
+    let _ = app.emit("deep-link", ());
 }
 
 #[tauri::command]
@@ -188,6 +195,8 @@ pub fn open_safe() -> Result<(), String> {
 /// status.
 #[tauri::command]
 pub async fn sync_everything(app: AppHandle) -> Result<Value, String> {
+    let bar = crate::bar::bar(&app);
+    let _busy = bar.busy();
     let conf = run_tool("ewe-conf", &["sync"], None, &[]).await?.json;
     if conf.get("ok").and_then(|b| b.as_bool()) == Some(true) {
         let _ = crate::cloud::write_machine_record().await;
@@ -201,6 +210,8 @@ pub async fn sync_everything(app: AppHandle) -> Result<Value, String> {
     tokio::spawn(async move {
         r.run_all().await;
     });
+    // the one file's verdict (a conflict, in sync) for the bar's glyph
+    bar.refresh().await;
     Ok(conf)
 }
 
@@ -294,6 +305,8 @@ pub async fn restore_preview(app: AppHandle) -> Result<Value, String> {
 /// it lists start now, the browser and Safe are nudged.
 #[tauri::command]
 pub async fn restore_everything(app: AppHandle) -> Result<Value, String> {
+    let bar = crate::bar::bar(&app);
+    let _busy = bar.busy();
     let r = crate::cloud::conf_restore().await?;
     if r.get("ok").and_then(|b| b.as_bool()) != Some(true) {
         return Ok(r);
@@ -317,6 +330,7 @@ pub async fn restore_everything(app: AppHandle) -> Result<Value, String> {
     }
     let _ = crate::cloud::write_machine_record().await;
     shell_poke("refresh").await;
+    bar.refresh().await;
     Ok(json!({
         "ok": true,
         "apps": r["apps"],
@@ -369,6 +383,7 @@ pub async fn after_sign_in(app: AppHandle) -> Result<(), String> {
     r.reload(true).await;
     shell_poke("refresh").await;
     nudge();
+    crate::bar::bar(&app).refresh().await;
     Ok(())
 }
 
@@ -389,6 +404,7 @@ pub async fn after_sign_out(app: AppHandle) -> Result<(), String> {
     r.creds.forget().await;
     r.reload(false).await;
     shell_poke("refresh").await;
+    crate::bar::bar(&app).refresh().await;
     Ok(())
 }
 

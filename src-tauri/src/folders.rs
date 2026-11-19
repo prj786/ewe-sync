@@ -778,6 +778,10 @@ impl Runner {
         let v = self.snapshot().await;
         let body = Self::public(&v).to_string();
         let _ = write_atomic(&public_path(), body.as_bytes());
+        // the bar's glyph (bar.rs) — there may be no page to hear the event
+        if let Some(bar) = self.app.try_state::<Arc<crate::bar::Bar>>() {
+            bar.note_folders(&v).await;
+        }
         let _ = self.app.emit("folders-status", v);
     }
 
@@ -1222,7 +1226,7 @@ impl Runner {
                 .output();
             if let Ok(o) = out {
                 if String::from_utf8_lossy(&o.stdout).trim() == "open" {
-                    let _ = app.emit("deep-link", json!({ "pane": "folders" }));
+                    crate::overview::deliver(&app, json!({ "pane": "folders" }));
                     crate::tray::show_main(&app);
                 }
             }

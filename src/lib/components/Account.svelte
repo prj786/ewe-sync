@@ -1,10 +1,12 @@
 <script>
   // Account — your own Nextcloud. Signed in: who, where and how much room,
   // in one well, and at the bottom the rare, disruptive Sign out (confirmed,
-  // like Stop syncing). Signed out: the sign-in (your browser opens your
-  // server's page; ewe never sees the password), what blocks it (access
-  // revoked, a locked or missing keyring) right under the title, and where
-  // to get an account.
+  // like Stop syncing). Signed out: the sign-in — server, name and password
+  // right here (0.16.3: no Nextcloud page; ewe-cloud trades the password once
+  // for this computer's own app password and keeps only that), or your
+  // browser for accounts with two-step verification or single sign-on —,
+  // what blocks it (access revoked, a locked or missing keyring) right under
+  // the title, and where to get an account.
   import { openUrl } from "@tauri-apps/plugin-opener";
   import * as api from "../api";
   import { cloud, busy, loginUrl, avatar, toast, fmtBytes, route } from "../stores";
@@ -19,6 +21,10 @@
   let { refresh } = $props();
 
   let server = $state(localStorage.getItem("ewe-sync.lastServer") || "");
+  let user = $state(localStorage.getItem("ewe-sync.lastUser") || "");
+  let password = $state("");
+  let viaBrowser = $state(false); // the browser flow is the one running
+  let browserHint = $state(false); // the server wants the browser (2FA, SSO, a redirect)
   let error = $state("");
   let resetDone = $state(false);
   let confirmSignOut = $state(false);
@@ -36,21 +42,35 @@
     keyringState === "locked" || keyringState === "unavailable" || String($cloud?.reason || "").startsWith("keyring")
   );
 
-  async function signIn() {
+  // browser = false: name + password here; true: the server's own page
+  async function signIn(browser = false) {
     if ($busy) return;
     error = "";
+    browserHint = false;
     loginUrl.set("");
     let s = server.trim();
     if (!s) {
       error = "Enter your server’s address, then sign in.";
       return;
     }
+    const name = user.trim();
+    if (!browser && !name) {
+      error = "Enter your username or email.";
+      return;
+    }
+    if (!browser && !password) {
+      error = "Enter your password.";
+      return;
+    }
     if (!s.includes("://")) s = "https://" + s;
     localStorage.setItem("ewe-sync.lastServer", s);
+    viaBrowser = browser;
     busy.set("signin");
     try {
-      const r = await api.cloudLogin(s);
+      const r = browser ? await api.cloudLogin(s) : await api.cloudLogin(s, name, password);
+      if (!browser) localStorage.setItem("ewe-sync.lastUser", name);
       if (r.ok) {
+        password = "";
         toast(`Signed in as **${r.display_name || r.user}**`, "success");
         await refresh();
         try {
@@ -65,12 +85,14 @@
         route.set("overview");
       } else {
         error = r.message || r.error || "Couldn’t sign in. Check the address and try again.";
+        browserHint = !browser && !!r.browser;
       }
     } catch (e) {
       error = String(e);
     } finally {
       busy.set("");
       loginUrl.set("");
+      viaBrowser = false;
     }
   }
 
@@ -119,7 +141,7 @@
       <Row tall title={$cloud.display_name || $cloud.user} sub={$cloud.email || $cloud.user}>
         {#snippet lead()}
           {#if $avatar}
-            <img class="ewe-avatar ewe-avatar--lg avatar-img" src={$avatar} alt="" />
+            <img class="ewe-avatar ewe-avatar--lg avatar-img" src={$avatar} alt="" onerror={() => avatar.set("")} />
           {:else}
             <span class="ewe-avatar ewe-avatar--lg" aria-hidden="true">
               {($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}
@@ -201,32 +223,76 @@
           <div class="ewe-card__titles">
             <div class="ewe-card__title">Sign in to your Nextcloud</div>
             <div class="ewe-card__desc">
-              Self-hosted or from a provider. Your browser opens your server’s sign-in page; ewe never sees your password.
+              Self-hosted or from a provider. Your password goes to your server once, which gives this computer its own
+              app password; the password itself is never kept.
             </div>
           </div>
         </div>
-        <label class="ewe-field">
-          <span class="ewe-field__label">Server address</span>
-          <span class="signin-line">
+        <form
+          class="signin-form"
+          onsubmit={(e) => {
+            e.preventDefault();
+            signIn(false);
+          }}
+        >
+          <label class="ewe-field">
+            <span class="ewe-field__label">Server address</span>
             <input
               class="ewe-input"
-              class:is-error={!!error}
               placeholder="cloud.example.org"
+              autocomplete="url"
               bind:value={server}
               disabled={$busy === "signin"}
-              onkeydown={(e) => e.key === "Enter" && signIn()}
             />
-            {#if $busy === "signin"}
-              <button class="ewe-btn ewe-btn--ghost" onclick={() => (busy.set(""), loginUrl.set(""))}>Cancel</button>
-            {:else}
-              <button class="ewe-btn ewe-btn--primary" onclick={signIn}>Sign in</button>
+          </label>
+          <label class="ewe-field">
+            <span class="ewe-field__label">Username or email</span>
+            <input
+              class="ewe-input"
+              autocomplete="username"
+              autocapitalize="off"
+              spellcheck="false"
+              bind:value={user}
+              disabled={$busy === "signin"}
+            />
+          </label>
+          <label class="ewe-field">
+            <span class="ewe-field__label">Password</span>
+            <input
+              class="ewe-input"
+              class:is-error={!!error && !viaBrowser}
+              type="password"
+              autocomplete="current-password"
+              bind:value={password}
+              disabled={$busy === "signin"}
+            />
+            {#if error}
+              <span class="ewe-field__helper ewe-field__helper--error"><Icon name="alert" />{error}</span>
             {/if}
-          </span>
-          {#if error}
-            <span class="ewe-field__helper ewe-field__helper--error"><Icon name="alert" />{error}</span>
-          {/if}
-        </label>
-        {#if $busy === "signin"}
+          </label>
+          <div class="signin-actions">
+            {#if $busy === "signin" && !viaBrowser}
+              <button class="ewe-btn ewe-btn--primary" type="button" disabled>
+                <span class="ewe-spinner ewe-spinner--sm" aria-hidden="true"></span>Signing in…
+              </button>
+            {:else if $busy === "signin"}
+              <button class="ewe-btn ewe-btn--ghost" type="button" onclick={() => (busy.set(""), loginUrl.set(""))}
+                >Cancel</button
+              >
+            {:else}
+              <button class="ewe-btn ewe-btn--primary" type="submit">Sign in</button>
+              <button
+                class="ewe-link"
+                class:signin-browser--hint={browserHint}
+                type="button"
+                onclick={() => signIn(true)}
+                title="For accounts with two-step verification or single sign-on"
+                >Sign in with the browser instead</button
+              >
+            {/if}
+          </div>
+        </form>
+        {#if $busy === "signin" && viaBrowser}
           <div class="waiting">
             <span class="ewe-spinner ewe-spinner--sm" aria-hidden="true"></span>
             <span>Waiting for the browser… Finish signing in on your server, then come back here.</span>

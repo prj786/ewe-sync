@@ -993,8 +993,9 @@ dependencies = [
 
 [[package]]
 name = "ewe-sync"
-version = "0.16.2-beta"
+version = "0.17.0-beta"
 dependencies = [
+ "base64 0.22.1",
  "notify",
  "reqwest 0.12.28",
  "serde",
@@ -1007,6 +1008,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "toml 0.8.2",
+ "webkit2gtk",
 ]
 
 [[package]]

@@ -6,7 +6,7 @@
   const listen = (ev, cb) => (window.__EWE_SYNC_MOCK__ ? Promise.resolve(() => {}) : tauriListen(ev, cb));
   import * as api from "./lib/api";
   import {
-    route, cloud, sync, busy, loginUrl, folders, trayState, toast, mail, google, gclient, consentUrl,
+    route, cloud, sync, busy, loginUrl, folders, toast, mail, google, gclient, consentUrl,
     browser, safe, pendingAdd, avatar
   } from "./lib/stores";
   import Sidebar from "./lib/components/Sidebar.svelte";
@@ -53,33 +53,16 @@
     }
   }
 
-  // Is the window on screen? `ewe-sync --hidden` (the login unit) keeps it
-  // unshown all session, and until 0.16.2 the page polled as if someone were
-  // reading it: a full round every 30 s (ewe-cloud, ewe-conf, ewe-mail,
-  // ewe-auth — python each — plus ~3 HTTPS requests) and the theme key every
-  // 4 s. Hidden, only what the bar's sync glyph needs (trayState: the account
-  // and the one file; folders arrive as events) is read, every 2 minutes.
-  let shown = true;
-  async function checkShown() {
-    try {
-      shown = await api.windowShown();
-    } catch {
-      shown = true;
-    }
-    return shown;
-  }
-  const HIDDEN_EVERY = 120000;
-  let lastQuiet = 0;
-  async function tick() {
-    if (await checkShown()) return refresh();
-    if (Date.now() - lastQuiet < HIDDEN_EVERY) return;
-    lastQuiet = Date.now();
-    return refresh(false);
-  }
+  // This page exists only while the window is on screen: `ewe-sync --hidden`
+  // (the login unit) starts with no window, close destroys it, and the bar's
+  // sync glyph is fed from Rust (src-tauri/src/bar.rs) — so everything here
+  // is for someone reading it, every 30 s and on focus. (Until 0.16.2 a
+  // hidden page kept polling for the glyph; until 0.17 it kept a WebKit
+  // process alive all session for nothing else.)
 
-  /** the account + the one file, in one round; `full = false` reads only
-   *  what the bar's glyph needs (the window is hidden) */
-  export async function refresh(full = true) {
+  /** the account + the one file, in one round, then what else the account
+   *  carries and the other accounts */
+  export async function refresh() {
     try {
       cloud.set(await api.cloudStatus());
     } catch (e) {
@@ -92,14 +75,11 @@
         sync.set({ ok: false, error: String(e) });
       }
       // what else the account carries: the browser and Safe report their own
-      if (full) {
-        api.browserStatus().then((b) => browser.set(b)).catch(() => browser.set(null));
-        api.safeStatus().then((s) => safe.set(s)).catch(() => safe.set(null));
-      }
+      api.browserStatus().then((b) => browser.set(b)).catch(() => browser.set(null));
+      api.safeStatus().then((s) => safe.set(s)).catch(() => safe.set(null));
     } else {
       sync.set(null);
     }
-    if (!full) return;
     // the other accounts (RFC-005): each answers with one JSON object and
     // never throws for "not configured", so a missing tool is the only catch
     try {
@@ -147,30 +127,21 @@
     }
   }
 
-  async function togglePause() {
-    const on = !!get(sync)?.enabled;
-    try {
-      await api.confSet("sync.enabled", !on);
-      await api.trayPauseLabel(on);
-      toast(on ? "Auto-sync paused" : "Auto-sync resumed", "info");
-    } catch (e) {
-      toast(String(e), "error");
-    }
-    refresh();
-  }
-
   const ROUTES = ["overview", "account", "mail", "google", "machine", "machines", "folders"];
   // the pages' names since 0.16, accepted beside the ids
   const ALIAS = { computers: "machines", settings: "machine" };
   const toRoute = (id) => (ROUTES.includes(id) ? id : ALIAS[id] || "");
 
   // `ewe-sync --pane <id>` / `--add-folder <path>` (the shell, ewe Settings,
-  // the file manager's "Keep in your account…")
+  // the file manager's "Keep in your account…"). Rust stores the link and
+  // says "deep-link"; the page takes it — on mount (the window was just
+  // built for it) or on the event (it was already open), never both.
   function openLink(l) {
     if (!l) return;
     if (l.add_folder) pendingAdd.set(String(l.add_folder));
     if (l.pane && toRoute(l.pane)) route.set(toRoute(l.pane));
   }
+  const takeLink = () => api.takeDeepLink().then(openLink).catch(() => {});
   onMount(() => {
     const unlisteners = [];
     // #overview / #account / #mail / #google / #machine / #machines / #folders
@@ -181,27 +152,18 @@
       if (ROUTES.includes(r) && location.hash !== "#" + r) history.replaceState(null, "", "#" + r);
     }));
     (async () => {
-      await checkShown();
-      unlisteners.push(watchTheme(themeKey, 4000, () => shown));
+      unlisteners.push(watchTheme(themeKey, 4000));
 
-      await refresh(shown);
-      if (!shown) lastQuiet = Date.now();
-      const timer = setInterval(tick, 30000);
+      await refresh();
+      const timer = setInterval(refresh, 30000);
       unlisteners.push(() => clearInterval(timer));
-      // shown again (the bar, a second launch): read everything at once
-      const onFocus = () => {
-        shown = true;
-        refresh();
-      };
-      // hidden (close hides): the next blur is when it happens
-      const onBlur = () => setTimeout(checkShown, 1000);
+      // back in front (the bar, a second launch): read everything at once
+      const onFocus = () => refresh();
       window.addEventListener("focus", onFocus);
-      window.addEventListener("blur", onBlur);
       unlisteners.push(() => window.removeEventListener("focus", onFocus));
-      unlisteners.push(() => window.removeEventListener("blur", onBlur));
 
-      unlisteners.push(await listen("deep-link", (e) => openLink(e.payload)));
-      api.takeDeepLink().then(openLink).catch(() => {});
+      unlisteners.push(await listen("deep-link", takeLink));
+      takeLink();
       unlisteners.push(await listen("login-url", (e) => loginUrl.set(String(e.payload || ""))));
       unlisteners.push(await listen("google-consent-url", (e) => consentUrl.set(String(e.payload || ""))));
       // the folder runner reports every change of state (a run, a conflict)
@@ -211,22 +173,10 @@
       } catch {
         /* outside the desktop */
       }
-      unlisteners.push(
-        await listen("tray-action", (e) => {
-          if (e.payload === "sync-now") syncNow();
-          if (e.payload === "pause") togglePause();
-        })
-      );
     })();
     return () => unlisteners.forEach((u) => u && u());
   });
 
-  // the bar's sync indicator follows the state machine in stores.js
-  $effect(() => {
-    const c = $cloud;
-    const tip = c?.signed_in ? `ewe Sync — ${c.display_name || c.user}` : "ewe Sync — not signed in";
-    api.trayState($trayState, tip).catch(() => {});
-  });
   // the account's picture, once per sign-in (the rail, Overview, Account);
   // a server without one is asked once, not on every refresh
   let avatarAsked = false;
@@ -241,10 +191,6 @@
     api.cloudAvatar().then((a) => {
       if (a?.ok && a.path) avatar.set(api.fileSrc(a.path));
     }).catch(() => {});
-  });
-  $effect(() => {
-    const s = $sync;
-    if (s && typeof s.enabled === "boolean") api.trayPauseLabel(!s.enabled).catch(() => {});
   });
 </script>
 
