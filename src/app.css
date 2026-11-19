@@ -636,6 +636,23 @@ code {
   .signin-line > .ewe-input {
     flex: 1;
   }
+  /* the sign-in card: server, name, password, then Sign in beside the
+     browser way in (0.16.3) */
+  .signin-form {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--space-s) + var(--space-xs));
+  }
+  .signin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+  }
+  /* the server asked for the browser (two-step, single sign-on): say so */
+  button.ewe-link.signin-browser--hint {
+    color: var(--accent-text);
+  }
   .mono-input {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;

@@ -72,9 +72,13 @@ pub async fn theme_tokens(theme: String) -> Result<Value, String> {
 
 // ── account ─────────────────────────────────────────────────────────────────
 
+/// The page's read of the account feeds the bar's state machine too
+/// (bar.rs): one answer, two readers.
 #[tauri::command]
-pub async fn cloud_status() -> Result<Value, String> {
-    Ok(run_tool("ewe-cloud", &["status"], None, &[]).await?.json)
+pub async fn cloud_status(app: AppHandle) -> Result<Value, String> {
+    let v = run_tool("ewe-cloud", &["status"], None, &[]).await?.json;
+    crate::bar::bar(&app).note_cloud(&v).await;
+    Ok(v)
 }
 
 fn server_ok(s: &str) -> bool {
@@ -86,27 +90,83 @@ fn server_ok(s: &str) -> bool {
         })
 }
 
-/// Login Flow v2 through ewe-cloud. The login URL arrives on the tool's
-/// stderr as `login-url: …` long before the JSON result; it is forwarded to
-/// the window as a `login-url` event so the pane can offer Open / Copy while
-/// the browser step is pending.
+/// A login name for `ewe-cloud login --user`: what Nextcloud accepts (a user
+/// id or an email), never empty, no control characters, 256 at most.
+fn login_name_ok(s: &str) -> bool {
+    let t = s.trim();
+    !t.is_empty() && t.chars().count() <= 256 && !t.chars().any(char::is_control)
+}
+
+/// Sign in through ewe-cloud, two ways.
+///
+/// With `user` and `password` (0.16.3 — no Nextcloud page): `ewe-cloud login
+/// <server> --user <name> --password-stdin`; the password goes down the
+/// tool's stdin, never its argv, and ewe-cloud trades it once for an app
+/// password (OCS core/getapppassword) and keeps only that. Accounts with
+/// two-step verification or single sign-on answer `browser: true`.
+///
+/// Without (Login Flow v2): the login URL arrives on the tool's stderr as
+/// `login-url: …` long before the JSON result; it is forwarded to the window
+/// as a `login-url` event so the pane can offer Open / Copy while the browser
+/// step is pending.
 #[tauri::command]
-pub async fn cloud_login(app: AppHandle, server: String) -> Result<Value, String> {
+pub async fn cloud_login(
+    app: AppHandle,
+    server: String,
+    user: Option<String>,
+    password: Option<String>,
+) -> Result<Value, String> {
     if !server_ok(&server) {
         return Err("that does not look like a server address".into());
     }
     let Some(path) = ewe_tool("ewe-cloud") else {
         return Err("ewe-cloud is not installed — is ewe deployed on this machine?".into());
     };
-    let mut child = Command::new("python3")
-        .arg(&path)
-        .args(["login", server.trim()])
+    let with_password = match (&user, &password) {
+        (Some(u), Some(p)) if !p.is_empty() => {
+            if !login_name_ok(u) {
+                return Ok(
+                    json!({"ok": false, "error": "no-user", "message": "Enter your username or email."}),
+                );
+            }
+            if p.contains('\n') || p.contains('\r') {
+                return Ok(
+                    json!({"ok": false, "error": "bad-password", "message": "A password can't contain a line break."}),
+                );
+            }
+            true
+        }
+        _ => false,
+    };
+    let mut cmd = Command::new("python3");
+    cmd.arg(&path).args(["login", server.trim()]);
+    if with_password {
+        cmd.args([
+            "--user",
+            user.as_deref().unwrap_or("").trim(),
+            "--password-stdin",
+        ]);
+    }
+    let mut child = cmd
         .env("LANG", "C")
-        .stdin(Stdio::null())
+        .stdin(if with_password {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(estr)?;
+    if with_password {
+        use tokio::io::AsyncWriteExt;
+        let mut stdin = child.stdin.take().ok_or("no stdin")?;
+        let mut line = password.unwrap_or_default().into_bytes();
+        line.push(b'\n');
+        stdin.write_all(&line).await.map_err(estr)?;
+        line.fill(0);
+        drop(stdin);
+    }
     let stderr = child.stderr.take().ok_or("no stderr")?;
     let app2 = app.clone();
     let reader = tokio::spawn(async move {
@@ -139,9 +199,103 @@ pub async fn cloud_logout() -> Result<Value, String> {
     Ok(run_tool("ewe-cloud", &["logout"], None, &[]).await?.json)
 }
 
+/// The account's picture as a `data:` URL. `ewe-cloud avatar` saves it to
+/// ~/.cache/ewe/cloud-avatar.<ext> and answers the path; this app never had
+/// Tauri's asset protocol (no `protocol-asset` feature, no scope), so the
+/// `asset://` URL `convertFileSrc` made of that path failed in every build and
+/// WebKit drew its broken-image "?" in the avatar (0.16.3). Inlining the bytes
+/// needs no file access from the page at all. Anything unreadable, not an
+/// image or over 4 MiB → `ok: false`, and the page shows the initial.
 #[tauri::command]
 pub async fn cloud_avatar() -> Result<Value, String> {
-    Ok(run_tool("ewe-cloud", &["avatar"], None, &[]).await?.json)
+    let reply = run_tool("ewe-cloud", &["avatar"], None, &[]).await?.json;
+    if reply.get("ok").and_then(Value::as_bool) != Some(true) {
+        return Ok(reply);
+    }
+    let Some(path) = reply.get("path").and_then(Value::as_str) else {
+        return Ok(json!({"ok": false, "error": "no-avatar"}));
+    };
+    let bytes = match tokio::fs::read(path).await {
+        Ok(b) => b,
+        Err(e) => return Ok(json!({"ok": false, "error": "unreadable", "message": e.to_string()})),
+    };
+    let declared = reply.get("type").and_then(Value::as_str).unwrap_or("");
+    match avatar_data_url(&bytes, declared) {
+        Some(url) => Ok(json!({"ok": true, "path": url, "bytes": bytes.len()})),
+        None => Ok(json!({"ok": false, "error": "not-an-image"})),
+    }
+}
+
+const AVATAR_MAX: usize = 4 * 1024 * 1024;
+
+/// `data:<image type>;base64,…` for the bytes of a picture, None when it is
+/// empty, too big or not a PNG / JPEG / GIF / WebP / SVG. The type comes from
+/// the bytes (a server's error page saved as .png must not become an image).
+fn avatar_data_url(bytes: &[u8], declared: &str) -> Option<String> {
+    use base64::Engine as _;
+    if bytes.is_empty() || bytes.len() > AVATAR_MAX {
+        return None;
+    }
+    let sniffed = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        "image/png"
+    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        "image/jpeg"
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        "image/gif"
+    } else if bytes.len() > 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        "image/webp"
+    } else if declared == "image/svg+xml" {
+        "image/svg+xml"
+    } else {
+        return None;
+    };
+    Some(format!(
+        "data:{sniffed};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+#[cfg(test)]
+mod login_tests {
+    use super::login_name_ok;
+
+    #[test]
+    fn login_names_are_ids_or_emails() {
+        assert!(login_name_ok("scubba"));
+        assert!(login_name_ok(" me@example.org "));
+        assert!(!login_name_ok(""));
+        assert!(!login_name_ok("   "));
+        assert!(!login_name_ok("a\nb"));
+        assert!(!login_name_ok(&"x".repeat(257)));
+    }
+}
+
+#[cfg(test)]
+mod avatar_tests {
+    use super::avatar_data_url;
+
+    #[test]
+    fn a_png_becomes_a_data_url() {
+        let png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
+        let url = avatar_data_url(png, "image/png").unwrap();
+        assert!(url.starts_with("data:image/png;base64,iVBORw0KGgo"));
+    }
+
+    #[test]
+    fn the_bytes_decide_not_the_name() {
+        assert_eq!(
+            avatar_data_url(b"<!doctype html><p>502</p>", "image/png"),
+            None
+        );
+        assert!(avatar_data_url(&[0xff, 0xd8, 0xff, 0xe0], "image/png")
+            .unwrap()
+            .starts_with("data:image/jpeg;"));
+        assert_eq!(avatar_data_url(b"", "image/png"), None);
+        assert_eq!(
+            avatar_data_url(&vec![0x89; super::AVATAR_MAX + 1], "image/png"),
+            None
+        );
+    }
 }
 
 /// The keyring playbook (RFC-005 / DE 0.9.18): move the keyring aside,
@@ -173,10 +327,12 @@ pub async fn session_logout() -> Result<(), String> {
 // ── the one file ────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn conf_sync_status() -> Result<Value, String> {
-    Ok(run_tool("ewe-conf", &["sync-status"], None, &[])
+pub async fn conf_sync_status(app: AppHandle) -> Result<Value, String> {
+    let v = run_tool("ewe-conf", &["sync-status"], None, &[])
         .await?
-        .json)
+        .json;
+    crate::bar::bar(&app).note_sync(&v).await;
+    Ok(v)
 }
 
 #[tauri::command]

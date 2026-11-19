@@ -1,4 +1,5 @@
 mod accounts;
+mod bar;
 mod cloud;
 mod folders;
 mod ncapp;
@@ -9,10 +10,10 @@ mod tray;
 
 use std::sync::Mutex;
 
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, RunEvent};
 
-/// `ewe-sync --hidden` (the autostart unit): tray only, no window until the
-/// user asks. `ewe-sync --check`: print the self-check JSON and exit.
+/// `ewe-sync --hidden` (the autostart unit): no window until the user asks.
+/// `ewe-sync --check`: print the self-check JSON and exit.
 /// `ewe-sync --status`: the folder snapshot other apps read, one JSON line.
 /// `--pane <id>` / `--add-folder <path>`: open the window there (a second
 /// launch forwards them to the running app).
@@ -34,7 +35,7 @@ pub fn run() {
     let link = overview::parse_deep_link(&args);
     let hidden = args.iter().any(|a| a == "--hidden") && link.is_none();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // a second launch (the launcher, the shell, the file manager's
             // "Keep in your account…") brings the window back, on its pane
@@ -48,6 +49,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(overview::DeepLink(Mutex::new(link)))
         .setup(move |app| {
+            // the bar's glyph: its state machine lives here, not in a page
+            let bar = bar::Bar::new();
+            app.manage(bar.clone());
+            bar.start();
             // the folder runner: its triggers live for the app's lifetime;
             // every folder catches up shortly after start
             let runner = folders::Runner::new(app.handle().clone());
@@ -58,16 +63,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                // hide, don't quit: the app lives for the session (the folder
-                // runner's triggers); the bar's sync glyph / Settings bring it back
-                if window.label() == "main" {
-                    let _ = window.hide();
-                    api.prevent_close();
-                }
-            }
-        })
+        .on_window_event(tray::on_window_event)
         .invoke_handler(tauri::generate_handler![
             cloud::de_prefs,
             cloud::theme_tokens,
@@ -115,9 +111,16 @@ pub fn run() {
             accounts::google_status,
             accounts::google_login,
             accounts::google_logout,
-            tray::tray_state,
-            tray::tray_pause_label,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running ewe-sync");
+        .build(tauri::generate_context!())
+        .expect("error while building ewe-sync");
+
+    app.run(|_app, event| {
+        // Closing the window destroys it (its page with it) — but the app
+        // lives for the session: the folder runner's triggers and the bar's
+        // state machine stay. Only an explicit exit (`code` set) ends it.
+        if let RunEvent::ExitRequested { api, code: None, .. } = &event {
+            api.prevent_exit();
+        }
+    });
 }

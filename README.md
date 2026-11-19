@@ -104,7 +104,8 @@ pages; you create the account in the browser and sign in here.
 
 ewe-sync is a thin UI over the ewe tools, run as argv, never through a shell:
 
-- `ewe-cloud` — Login Flow v2, account facts, the app password
+- `ewe-cloud` — sign-in (a password exchanged once for an app password, or
+  Login Flow v2 in the browser), account facts, the app password
 - `ewe-conf` — push / pull / sync-status of the one file (WebDAV with the
   server's own `If-Match` conflict guard), and `[[sync.folders]]`
 - `nextcloudcmd` / `rclone` — the folder engines (see Folder sync)
@@ -125,10 +126,14 @@ Arch package: `makepkg -si` (the PKGBUILD is the packaging path; Tauri has
 no pacman bundler). `options=(!lto)` and `npm run tauri build -- --no-bundle`
 are load-bearing — see Komble's PKGBUILD for why.
 
-`ewe-sync --hidden` starts without a window (the autostart unit does this);
-while the window is not on screen it reads only what the bar's sync glyph
-needs (the account and the one file, every 2 minutes — folders report by
-event), and everything else the moment it is shown (0.16.2);
+`ewe-sync --hidden` starts without a window (the autostart unit does this).
+The window — and with it the WebKit page — exists only while it is on
+screen: it is built when something asks for it and destroyed when it is
+closed, while the process (the folder runner, the bar's state machine) lives
+for the session. The bar's sync glyph is fed from Rust (`src-tauri/src/bar.rs`:
+the account and the one file every 2 minutes, folders by event, Sync now
+while it runs), so a hidden ewe-sync costs about the Rust side alone
+(~100 MB less than when a hidden page did this, 0.16.2);
 `ewe-sync --pane <overview|folders|machine|machines|account|mail|google>`
 opens the window on a pane; `ewe-sync --add-folder <path>` opens Folders with
 that folder ready to add (ewe browser's "Keep in your account…"); both reach

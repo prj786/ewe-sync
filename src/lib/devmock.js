@@ -25,6 +25,7 @@
 //   slow=<command>                   that command never answers (loading states)
 //   keyring=locked|unavailable       signed out, with the keyring in the way
 //   reason=revoked                   signed out because access was revoked
+//   login=wrong                      Sign in with a password is refused
 //   syncerror=<text>                 settings sync failed with that error
 function iso(minutesAgo) {
   return new Date(Date.now() - minutesAgo * 60000).toISOString();
@@ -145,7 +146,14 @@ export function install(params) {
       colorScheme: "dark"
     }),
     cloud_status: () => state.cloud,
-    cloud_login: () => ({ ok: true, ...state.cloud }),
+    // login=wrong: the server refuses the password (and points at the browser)
+    cloud_login: ({ password } = {}) =>
+      params.get("login") === "wrong" && password
+        ? {
+            ok: false, error: "unauthorized", browser: true,
+            message: "Nextcloud didn't accept that username and password. If your account uses two-step verification or single sign-on, sign in with the browser instead."
+          }
+        : { ok: true, ...state.cloud },
     cloud_logout: () => ({ ok: true, revoked: true }),
     cloud_avatar: () => ({ ok: true, path: avatarDataUri() }),
     keyring_reset: () => ({ ok: true, moved: "", relogin: true }),
@@ -231,8 +239,6 @@ export function install(params) {
       state.folders.conflicts = 0;
       return state.folders;
     },
-    tray_state: () => null,
-    tray_pause_label: () => null,
     // the other accounts (RFC-005): `&mail=out` / `&google=out` show the
     // empty states, which are the ones worth screenshotting
     mail_status: () =>

@@ -426,7 +426,7 @@
     <div class="ewe-list">
       <div class="ewe-row ewe-row--tall">
         {#if $avatar}
-          <img class="ewe-avatar acct-avatar avatar-img" src={$avatar} alt="" />
+          <img class="ewe-avatar acct-avatar avatar-img" src={$avatar} alt="" onerror={() => avatar.set("")} />
         {:else}
           <span class="ewe-avatar acct-avatar" aria-hidden="true">{($cloud.display_name || $cloud.user || "?").slice(0, 1).toUpperCase()}</span>
         {/if}

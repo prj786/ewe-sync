@@ -56,16 +56,10 @@ export function conflictOf(s) {
   return null;
 }
 
-/** what the tray shows — derived from everything above */
-export const trayState = derived([cloud, sync, busy, folders], ([$c, $s, $b, $f]) => {
-  if (!$c || !$c.signed_in) return "signed-out";
-  if ($c.offline) return "offline";
-  if ($b === "sync" || $b === "restore" || $f?.syncing) return "syncing";
-  if (conflictOf($s)) return "conflict";
-  // a folder conflict or a folder that keeps failing needs the user too
-  if ($f?.conflicts || $f?.errors) return "conflict";
-  return "idle";
-});
+// (The bar's sync glyph — signed-out · offline · syncing · conflict · idle —
+// was derived here until 0.16.2 and poked to the shell from the page. It
+// lives in Rust now, src-tauri/src/bar.rs, so the page need not exist for
+// the bar to be right; statusLine below is the same verdict for the rail.)
 
 // The Toast (design/system/components/Toast): one at a time, a new one
 // replaces the current one. 5 s, or 8 s when it carries an action; the

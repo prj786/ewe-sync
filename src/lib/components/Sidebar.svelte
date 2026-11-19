@@ -78,7 +78,7 @@
     >
       <span class="ewe-avatar ewe-avatar--sm who__avatar" aria-hidden="true">
         {#if $avatar && name}
-          <img class="who__img" src={$avatar} alt="" />
+          <img class="who__img" src={$avatar} alt="" onerror={() => avatar.set("")} />
         {:else if name}
           {name.slice(0, 1).toUpperCase()}
         {:else}
