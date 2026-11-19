@@ -206,13 +206,17 @@ pub fn conflict_of(s: &Value) -> Option<&'static str> {
             };
         }
     }
-    if s["ok"].as_bool() == Some(true) && !s["remote"].is_null() && s["in_sync"] == Value::Bool(false)
+    if s["ok"].as_bool() == Some(true)
+        && !s["remote"].is_null()
+        && s["in_sync"] == Value::Bool(false)
     {
-        return Some(if s["local_synced_at"].is_null() || s["local_synced_at"] == Value::Bool(false) {
-            "remote-exists"
-        } else {
-            "remote-newer"
-        });
+        return Some(
+            if s["local_synced_at"].is_null() || s["local_synced_at"] == Value::Bool(false) {
+                "remote-exists"
+            } else {
+                "remote-newer"
+            },
+        );
     }
     None
 }
@@ -252,20 +256,37 @@ mod tests {
     #[test]
     fn conflicts_read_like_the_page_did() {
         assert_eq!(conflict_of(&Value::Null), None);
-        assert_eq!(conflict_of(&json!({"ok": false, "error": "remote-newer"})), Some("remote-newer"));
-        assert_eq!(conflict_of(&json!({"ok": true, "conflict": "remote-exists"})), Some("remote-exists"));
-        assert_eq!(conflict_of(&json!({"ok": true, "conflict": null, "remote": {}, "in_sync": false})), None);
+        assert_eq!(
+            conflict_of(&json!({"ok": false, "error": "remote-newer"})),
+            Some("remote-newer")
+        );
+        assert_eq!(
+            conflict_of(&json!({"ok": true, "conflict": "remote-exists"})),
+            Some("remote-exists")
+        );
+        assert_eq!(
+            conflict_of(&json!({"ok": true, "conflict": null, "remote": {}, "in_sync": false})),
+            None
+        );
         // an older ewe-conf: no `conflict` key, read from in_sync
         assert_eq!(
-            conflict_of(&json!({"ok": true, "remote": {"machine": "a"}, "in_sync": false, "local_synced_at": "2026-01-01"})),
+            conflict_of(
+                &json!({"ok": true, "remote": {"machine": "a"}, "in_sync": false, "local_synced_at": "2026-01-01"})
+            ),
             Some("remote-newer")
         );
         assert_eq!(
             conflict_of(&json!({"ok": true, "remote": {"machine": "a"}, "in_sync": false})),
             Some("remote-exists")
         );
-        assert_eq!(conflict_of(&json!({"ok": true, "remote": {"machine": "a"}, "in_sync": true})), None);
-        assert_eq!(conflict_of(&json!({"ok": true, "remote": null, "in_sync": false})), None);
+        assert_eq!(
+            conflict_of(&json!({"ok": true, "remote": {"machine": "a"}, "in_sync": true})),
+            None
+        );
+        assert_eq!(
+            conflict_of(&json!({"ok": true, "remote": null, "in_sync": false})),
+            None
+        );
     }
 
     #[tokio::test]
@@ -274,9 +295,15 @@ mod tests {
         assert_eq!(b.state().await.0, "signed-out");
         *b.cloud.lock().await = json!({"signed_in": true, "user": "me", "display_name": "Me"});
         assert_eq!(b.state().await, ("idle".into(), "ewe Sync — Me".into()));
-        *b.folders.lock().await = Folders { syncing: false, needs_you: true };
+        *b.folders.lock().await = Folders {
+            syncing: false,
+            needs_you: true,
+        };
         assert_eq!(b.state().await.0, "conflict");
-        *b.folders.lock().await = Folders { syncing: true, needs_you: true };
+        *b.folders.lock().await = Folders {
+            syncing: true,
+            needs_you: true,
+        };
         assert_eq!(b.state().await.0, "syncing");
         *b.folders.lock().await = Folders::default();
         *b.sync.lock().await = json!({"ok": false, "error": "remote-exists"});

@@ -119,7 +119,10 @@ pub fn run() {
         // Closing the window destroys it (its page with it) — but the app
         // lives for the session: the folder runner's triggers and the bar's
         // state machine stay. Only an explicit exit (`code` set) ends it.
-        if let RunEvent::ExitRequested { api, code: None, .. } = &event {
+        if let RunEvent::ExitRequested {
+            api, code: None, ..
+        } = &event
+        {
             api.prevent_exit();
         }
     });
