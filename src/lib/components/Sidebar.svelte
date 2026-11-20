@@ -73,7 +73,7 @@
     <button
       type="button"
       class="who"
-      title={narrow ? `${name || "Not signed in"} · ${$statusLine.word}` : undefined}
+      title={narrow ? (name ? `${name} · ${$statusLine.word}` : "Not signed in") : undefined}
       onclick={() => route.set($cloud?.signed_in ? "overview" : "account")}
     >
       <span class="ewe-avatar ewe-avatar--sm who__avatar" aria-hidden="true">
