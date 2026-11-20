@@ -319,9 +319,12 @@
               {/snippet}
             </Alert>
           {:else if it.kind === "browser"}
+            <!-- one plain sentence; what the browser reported (often a
+                 server error) stays a hover away for the curious -->
             <Alert tone="danger" title="ewe Browser couldn’t sync">
-              {firstLine(it.raw) || "The last try failed."} Its bookmarks, history and tabs stay on this computer until
-              it syncs.
+              <span title={firstLine(it.raw) || undefined}
+                >Try again to send this computer’s bookmarks, history and tabs to your account.</span
+              >
               {#snippet actions()}
                 <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" aria-disabled={!!$busy} onclick={syncNow}>Try again</button>
               {/snippet}

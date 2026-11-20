@@ -608,6 +608,11 @@ code {
   .row-button .ewe-row__text {
     display: flex;
   }
+  /* the tile wears surface-hover, which is the hovered row's own fill: one
+     step further keeps it from melting into the row (light and dark alike) */
+  .ewe-row--interactive:hover:not(.is-selected) .ewe-row__lead--tile {
+    background: var(--surface-pressed);
+  }
   .ewe-row__lead > .ewe-avatar,
   .ewe-row__lead > .ewe-row__lead--tile {
     flex: none;
