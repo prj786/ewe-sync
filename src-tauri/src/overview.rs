@@ -334,6 +334,7 @@ pub async fn restore_everything(app: AppHandle) -> Result<Value, String> {
     Ok(json!({
         "ok": true,
         "apps": r["apps"],
+        "plugins": r["plugins"],
         "folders": keys.len(),
         "machine": r["pulled"]["machine"],
     }))

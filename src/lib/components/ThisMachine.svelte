@@ -67,7 +67,7 @@
     try {
       const r = await api.restore();
       if (r.ok) {
-        toast(`Settings restored.${r.apps ? ` ${r.apps} apps are listed in Komble.` : ""}`, "success", 8000);
+        toast(`Settings restored.${r.plugins ? ` ${r.plugins} plugin${r.plugins === 1 ? " is" : "s are"} back.` : ""}${r.apps ? ` ${r.apps} apps are listed in Komble.` : ""}`, "success", 8000);
       } else toast(r.message || r.error || r.apply_stderr || "Couldn’t restore. Try again.", "error");
     } catch (e) {
       toast(String(e), "error");

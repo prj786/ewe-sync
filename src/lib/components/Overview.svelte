@@ -165,9 +165,12 @@
       const r = await api.restoreEverything();
       if (r.ok) {
         const bits = [];
+        if (r.plugins) bits.push(`${r.plugins} plugin${r.plugins === 1 ? " is" : "s are"} back`);
         if (r.apps) bits.push(`${r.apps} app${r.apps === 1 ? "" : "s"} wait in Komble`);
         if (r.folders) bits.push(`your folders are coming down`);
-        toast(`Welcome back.${bits.length ? " " + bits.join(", and ") + "." : ""}`, "success", 9000);
+        // "a, and b" as before; three read "a, b, and c"
+        const said = bits.length > 2 ? `${bits.slice(0, -1).join(", ")}, and ${bits.at(-1)}` : bits.join(", and ");
+        toast(`Welcome back.${said ? " " + said + "." : ""}`, "success", 9000);
       } else toast(r.message || r.error || r.apply_stderr || "Couldn’t bring everything back. Try again.", "error");
     } catch (e) {
       toast(String(e), "error");
