@@ -32,6 +32,8 @@ toml = "0.8"                    # reads the account's copy of ewe.conf for the r
 # the page, or WebKit caches it page-less for 30 min); the version and feature
 # Tauri itself pins, nothing new in the lock
 webkit2gtk = { version = "2.0", features = ["v2_40"] }
+# the web view's leave event (pointer.rs); the gtk that Tauri itself uses
+gtk = "0.18"
 
 # Everything ewe-sync does is the user's own: it drives the ewe tools (ewe-cloud,
 # ewe-conf, ewe-auth) as argv, talks WebDAV with the account's app password,

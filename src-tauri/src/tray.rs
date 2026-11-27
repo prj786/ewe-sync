@@ -25,16 +25,21 @@ pub fn show_main(app: &AppHandle) {
         let _ = w.set_focus();
         return;
     }
-    // the same window tauri.conf.json declared until 0.16.2
+    // the same window tauri.conf.json declared until 0.16.2. No minimum size:
+    // Hyprland gives a tiled window the size of its tile whatever the window
+    // asks for, and a window that insists on more is drawn squeezed into the
+    // tile (cropped on a scale-1 screen) while the pointer is not, so every
+    // hover and click lands beside what is drawn. The page takes any size.
     let built = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::default())
         .title("ewe Sync")
         .inner_size(960.0, 640.0)
-        .min_inner_size(420.0, 480.0)
         .center()
         .decorations(false)
         .build();
-    if let Err(e) = built {
-        eprintln!("ewe-sync: could not open the window: {e}");
+    // every build is a new web view, so every build is hooked
+    match built {
+        Ok(w) => crate::pointer::forget_hover_on_leave(&w),
+        Err(e) => eprintln!("ewe-sync: could not open the window: {e}"),
     }
 }
 

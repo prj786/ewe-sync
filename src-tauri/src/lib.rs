@@ -1,9 +1,11 @@
 mod accounts;
 mod bar;
 mod cloud;
+mod crash;
 mod folders;
 mod ncapp;
 mod overview;
+mod pointer;
 mod remote;
 mod tools;
 mod tray;
@@ -18,6 +20,7 @@ use tauri::{Manager, RunEvent};
 /// `--pane <id>` / `--add-folder <path>`: open the window there (a second
 /// launch forwards them to the running app).
 pub fn run() {
+    crash::log_panics();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--check") {
         let v = tauri::async_runtime::block_on(cloud::self_check());
