@@ -4,8 +4,9 @@
   // a work account. Gmail is better through the Google page.
   //
   // This pane owns adding, changing and removing accounts (ewe Mail and the
-  // shell plugin only read them). The new-mail NOTIFICATION switch stays in
-  // ewe Settings → User: a per-computer preference, not part of an account.
+  // shell plugin only read them). The new-mail NOTIFICATION switch is the
+  // Mail plugin's own setting (its bell, Komble → Plugins → Mail → Options):
+  // a preference about this desktop, not part of an account.
   // Adding and changing happen in a sheet (the same grammar as a folder),
   // email first: the address fills in the servers, which stay editable under
   // "Servers". Removing asks first, naming the account.
@@ -316,7 +317,7 @@
 
   <p class="note">
     The unread count of every account shows in Quick settings, and ewe Mail reads and sends from them. Whether new mail
-    also notifies you is set per computer, in ewe Settings → User.
+    also notifies you is the bell on the Inbox page in Quick settings.
   </p>
 </Page>
 
