@@ -28,11 +28,17 @@ export const confGet = (key) => invoke("conf_get_cmd", { key });
 export const confSet = (key, value) => invoke("conf_set_cmd", { key, value });
 export const shellPoke = (verb) => invoke("shell_poke_cmd", { verb });
 
-// mail (ewe-mail) — any IMAP mailbox; the password goes on stdin, never argv
+// mail (ewe-mail) — any number of IMAP/SMTP mailboxes; passwords go on stdin, never argv.
+// `extra` (snake_case, as the CLI names them): email, name, smtp_host, smtp_port,
+// smtp_security, smtp_user, smtp_password (only when the outgoing password differs).
 export const mailStatus = () => invoke("mail_status");
-export const mailLogin = (host, port, user, password, starttls = false) =>
-  invoke("mail_login", { host, port, user, password, starttls });
-export const mailLogout = () => invoke("mail_logout");
+export const mailAccounts = () => invoke("mail_accounts");
+export const mailAutoconfig = (email) => invoke("mail_autoconfig", { email });
+export const mailLogin = (host, port, user, password, starttls = false, extra = null) =>
+  invoke("mail_login", extra ? { host, port, user, password, starttls, extra } : { host, port, user, password, starttls });
+/** one account by id ("imap:me@example.org"); no id = the only one */
+export const mailLogout = (id = null) => invoke("mail_logout", id ? { id } : {});
+export const mailSetName = (id, name) => invoke("mail_set_name", { id, name });
 export const mailUnseen = () => invoke("mail_unseen");
 
 // google (ewe-auth) — the optional extra; ewe ships no client of its own

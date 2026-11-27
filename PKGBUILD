@@ -12,8 +12,8 @@ pkgname=ewe-sync
 # extracts to <repo>-<tag without the leading v>, so the source URL and
 # the directory below follow _tag, never pkgver. The release workflow
 # rewrites both.
-_tag=v0.17.3-beta
-pkgver=0.17.3beta
+_tag=v0.18.0-beta
+pkgver=0.18.0beta
 pkgrel=1
 pkgdesc="ewe Sync — your ewe account: settings, folders and computers in your own Nextcloud"
 arch=('x86_64' 'aarch64')

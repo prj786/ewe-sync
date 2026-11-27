@@ -54,7 +54,20 @@ export function install(params) {
   if (scene === "new") params.set("conflict", "exists");
   const now = Math.floor(Date.now() / 1000);
   const server = "https://ivo.lv.tab.digital";
+  const mk = (email, name, host, extra = {}) => ({
+    id: "imap:" + email, email, name, host, port: 993, starttls: false, user: email,
+    smtp_host: host.replace("imap.", "smtp."), smtp_port: 465, smtp_security: "tls", smtp_user: email, keyring: true, ...extra
+  });
+  const mailParam = params.get("mail");
   const state = {
+    mail:
+      mailParam === "out"
+        ? []
+        : [
+            mk("scubba@tab.digital", "Scubba", "imap.tab.digital"),
+            mk("nino@example.org", "", "imap.example.org", { smtp_port: 587, smtp_security: "starttls" }),
+            ...(mailParam === "many" ? [mk("work@acme.example", "Scubba at Acme", "mail.acme.example", { keyring: false })] : [])
+          ],
     cloud: signedOut
       ? {
           ok: true, signed_in: false, keyring: true, keyring_state: params.get("keyring") || "ok",
@@ -241,29 +254,61 @@ export function install(params) {
     },
     // the other accounts (RFC-005): `&mail=out` / `&google=out` show the
     // empty states, which are the ones worth screenshotting
-    mail_status: () =>
-      params.get("mail") === "out"
-        ? { ok: true, configured: false }
-        : { ok: true, configured: true, host: "imap.tab.digital", user: "scubba@tab.digital", port: 993, keyring: true, keyring_state: "ok" },
-    mail_login: ({ host, user, port }) => ({ ok: true, host, user, port }),
-    mail_logout: () => ({ ok: true }),
+    // `&mail=out` = none, `&mail=many` = three accounts (default: two)
+    mail_status: () => {
+      const a = state.mail[0];
+      return a
+        ? { ok: true, configured: true, host: a.host, user: a.user, port: a.port, starttls: a.starttls, keyring: a.keyring, count: state.mail.length }
+        : { ok: true, configured: false, count: 0 };
+    },
+    mail_accounts: () => ({ ok: true, accounts: state.mail }),
+    mail_autoconfig: ({ email }) => {
+      const d = String(email).split("@")[1] || "";
+      if (d === "gmail.com")
+        return { ok: true, source: "builtin", imap: { host: "imap.gmail.com", port: 993, security: "tls" }, smtp: { host: "smtp.gmail.com", port: 465, security: "tls" }, user: "email", note: "Gmail needs an app password, not your usual one. Connecting Google is easier." };
+      if (d === "icloud.com")
+        return { ok: true, source: "builtin", imap: { host: "imap.mail.me.com", port: 993, security: "tls" }, smtp: { host: "smtp.mail.me.com", port: 587, security: "starttls" }, user: "local", note: "iCloud needs an app-specific password, made at appleid.apple.com." };
+      return { ok: true, source: "guess", imap: { host: "imap." + d, port: 993, security: "tls" }, smtp: { host: "smtp." + d, port: 465, security: "tls" }, user: "email", note: "" };
+    },
+    mail_login: ({ host, user, port, starttls, extra }) => {
+      if (params.get("mail_fail") === "smtp") return { ok: false, error: "smtp-auth-failed", message: `The outgoing server (${extra?.smtp_host || host}) rejected the login: 535 Authentication credentials invalid` };
+      const email = (extra?.email || (user.includes("@") ? user : "")).toLowerCase();
+      const rec = { id: "imap:" + email, email, name: extra?.name || "", host, port, starttls: !!starttls, user,
+        smtp_host: extra?.smtp_host || host, smtp_port: extra?.smtp_port || 465, smtp_security: extra?.smtp_security || "tls",
+        smtp_user: extra?.smtp_user || user, keyring: true };
+      const i = state.mail.findIndex((x) => x.id === rec.id);
+      if (i >= 0) state.mail[i] = rec; else state.mail.push(rec);
+      return { ok: true, account: rec, host, user, port, starttls: !!starttls };
+    },
+    mail_logout: ({ id }) => {
+      state.mail = id ? state.mail.filter((x) => x.id !== id) : state.mail.slice(1);
+      return { ok: true };
+    },
+    mail_set_name: ({ id, name }) => {
+      const a = state.mail.find((x) => x.id === id);
+      if (a) a.name = name;
+      return { ok: true };
+    },
     mail_unseen: () => ({
       ok: true,
       unread: 2,
       list: [
-        { id: "1", from: "Nextcloud <no-reply@tab.digital>", subject: "Your app password was used", unread: true },
-        { id: "2", from: "Arch <security@archlinux.org>", subject: "[arch-security] Advisory ASA-202609-1", unread: true }
+        { id: "1", account: "imap:scubba@tab.digital", from: "Nextcloud <no-reply@tab.digital>", subject: "Your app password was used", unread: true },
+        { id: "2", account: "imap:scubba@tab.digital", from: "Arch <security@archlinux.org>", subject: "[arch-security] Advisory ASA-202609-1", unread: true }
       ]
     }),
     google_client_info: () =>
       params.get("google") === "out"
         ? { path: "/home/scubba/.config/ewe/oauth-client.json", exists: false, valid: false }
         : { path: "/home/scubba/.config/ewe/oauth-client.json", exists: true, valid: true },
+    // `&gmail=read` = signed in with the read-only Gmail permission
     google_status: () =>
       params.get("google") === "out"
         ? { ok: true, configured: false, signed_in: false }
         : {
             ok: true, configured: true, signed_in: true, mail_state: "ok", mail_unread: 3,
+            mail: params.get("gmail") === "read" ? "read" : "full",
+            scopes: ["openid", "email", "profile"],
             profile: { name: "Scubba", email: "macharashvili786@gmail.com" }
           },
     google_login: () => ({ ok: true }),
@@ -284,7 +329,11 @@ export function install(params) {
           .find((b) => b.querySelector(".ewe-navitem__label")?.textContent.trim() === pane || b.dataset.route === pane)
           ?.click();
       setTimeout(() => {
-        if (params.get("click")) document.querySelector(params.get("click"))?.click();
+        // click=<selector>[|<selector>…]: each one 300 ms after the last
+        (params.get("click") || "")
+          .split("|")
+          .filter(Boolean)
+          .forEach((sel, i) => setTimeout(() => document.querySelector(sel)?.click(), i * 300));
         if (params.get("focus")) {
           const el = document.querySelector(params.get("focus"));
           // a real keyboard focus, so :focus-visible draws the ring

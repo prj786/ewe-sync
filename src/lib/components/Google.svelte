@@ -65,6 +65,19 @@
     working = false;
   }
 
+  /** Disconnect, then connect again: the new consent asks for the mail permission. */
+  async function reconnect() {
+    if (working) return;
+    try {
+      await api.googleLogout();
+    } catch (e) {
+      toast(String(e), "error");
+      return;
+    }
+    await refresh();
+    await connect();
+  }
+
   function copyPath() {
     navigator.clipboard
       .writeText(fullPath)
@@ -152,6 +165,20 @@
             ? `${$google.mail_unread || 0} unread`
             : $google.mail_state || "—"}
       />
+      {#if $google.mail}
+        <div class="ewe-list__divider"></div>
+        {#if $google.mail === "full"}
+          <KV k="Gmail permission" v="Read, organise and send" />
+        {:else if $google.mail === "read"}
+          <Row dense title="Gmail permission" sub="Read only — reconnect to send">
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" disabled={working} onclick={reconnect}>Reconnect</button>
+          </Row>
+        {:else}
+          <Row dense title="Gmail permission" sub="None — reconnect to read and send mail">
+            <button class="ewe-btn ewe-btn--sm ewe-btn--secondary" disabled={working} onclick={reconnect}>Reconnect</button>
+          </Row>
+        {/if}
+      {/if}
       <KV k="Drive folder" v="~/Google Drive" mono />
     {:else}
       <Row
