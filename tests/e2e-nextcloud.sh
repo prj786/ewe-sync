@@ -118,7 +118,10 @@ ok "A: a file written in ~/Docs went up by itself"
 # 2 · B signs in: the folder list comes with the one file, the file comes down
 on a python3 "$EWE/bin/ewe-conf" sync --no-hooks >/dev/null
 start b
-on b python3 "$EWE/bin/ewe-conf" sync --no-hooks >/dev/null
+# B was set up on its own and the account holds A's file: since ewe 0.50.2 a
+# plain sync refuses that (remote-exists, the user's question); --join is the
+# explicit merge
+on b python3 "$EWE/bin/ewe-conf" sync --join --no-hooks >/dev/null
 on b python3 "$EWE/bin/ewe-conf" get sync.folders | grep -q '"Docs"' || fail "B did not get A's folder list"
 wait_for 90 "the file came down to B" local_is b Docs/a.txt "hello from A"
 ok "B: signed in, got the folder list from the account, and the file came down"

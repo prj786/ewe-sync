@@ -278,6 +278,36 @@ code {
   .page > .ewe-headerbar {
     padding-bottom: calc(var(--space-s) + var(--space-xs));
   }
+  /* In a narrow window the page gives back its side padding, and a card's
+     icon sits above its title instead of squeezing the title to a word a
+     line (a word longer than the card breaks rather than runs out of it). */
+  @media (max-width: 480px) {
+    .page {
+      padding-inline: var(--space-md);
+    }
+    /* a title wraps instead of ending in an ellipsis; a row's control and an
+       alert's buttons drop under their text instead of running out */
+    .page .ewe-headerbar__title {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .page .ewe-row {
+      flex-wrap: wrap;
+    }
+    .page .ewe-row__text {
+      flex: 1 1 calc(6 * var(--control-md));
+    }
+    .page .ewe-alert__actions {
+      flex-wrap: wrap;
+    }
+  }
+  .page .ewe-card__head {
+    flex-wrap: wrap;
+  }
+  .page .ewe-card__titles {
+    flex: 1 1 calc(6 * var(--control-md));
+    overflow-wrap: anywhere;
+  }
   /* a group: overline section header, 8px, then its list well; 24px above */
   .group {
     display: flex;

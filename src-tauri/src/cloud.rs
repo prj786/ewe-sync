@@ -349,6 +349,28 @@ pub async fn conf_push(force: Option<bool>) -> Result<Value, String> {
     Ok(o.json)
 }
 
+/// The pulled file lists the plugins of the computer that saved it; the
+/// first-party ones are copied in from ewe's payload, as the installer's
+/// plugins step does (`ewe-plugin restore --bundled`, ewe 0.50.2: one JSON
+/// object, never a clone, never a package). It restarts the shell once when
+/// a plugin that is switched on came back: that is the dock appearing. Until
+/// 0.17.2 nothing did this, and a restored desktop had no dock. Returns how
+/// many came back; an older ewe answers no JSON and counts as none.
+async fn restore_plugins() -> usize {
+    match crate::tools::run_script("ewe-plugin", &["restore", "--bundled"]).await {
+        Ok(o) => plugins_restored(&o.json),
+        Err(_) => 0,
+    }
+}
+
+fn plugins_restored(answer: &Value) -> usize {
+    answer
+        .get("installed")
+        .and_then(|i| i.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0)
+}
+
 /// Pull the account's copy over this machine's file. The caller confirms
 /// first; afterwards `apply` (with hooks: theme, shell reload, Hyprland
 /// reload) makes it real, and the shell is told so its state follows.
@@ -359,6 +381,7 @@ pub async fn conf_restore() -> Result<Value, String> {
         return Ok(pulled);
     }
     let applied = run_tool("ewe-conf", &["apply"], None, &[]).await?;
+    let plugins = restore_plugins().await;
     crate::tools::shell_poke("refresh").await;
     let apps = conf_get("apps.installed")
         .await
@@ -371,6 +394,7 @@ pub async fn conf_restore() -> Result<Value, String> {
         "ok": applied.code == 0,
         "pulled": pulled,
         "apps": apps,
+        "plugins": plugins,
         "apply_stderr": applied.stderr.lines().last().unwrap_or("").to_string(),
     }))
 }
@@ -630,4 +654,22 @@ pub async fn self_check() -> Value {
         "machines": machines,
         "this_machine": this_machine(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_plugins_that_came_back_are_counted_from_the_tools_answer() {
+        let answer =
+            json!({"ok": true, "installed": ["ewe.dock", "ewe.media"], "enabled": ["ewe.dock"]});
+        assert_eq!(plugins_restored(&answer), 2);
+    }
+
+    #[test]
+    fn an_older_ewe_answers_no_json_and_counts_as_none() {
+        assert_eq!(plugins_restored(&Value::Null), 0);
+        assert_eq!(plugins_restored(&json!({"ok": false})), 0);
+    }
 }
