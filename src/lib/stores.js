@@ -12,6 +12,9 @@ export const busy = writable("");
 export const loginUrl = writable("");
 /** ewe-mail status (null = not probed yet) */
 export const mail = writable(null);
+/** ewe-mail accounts: [{id, email, name, host, port, starttls, user, smtp_host,
+ *  smtp_port, smtp_security, smtp_user, keyring}] (null = not probed yet) */
+export const mailAccounts = writable(null);
 /** ewe-auth status (null = not probed yet) */
 export const google = writable(null);
 /** {path, exists, valid} for the user's own Google OAuth client */
